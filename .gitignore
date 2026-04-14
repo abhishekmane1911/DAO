@@ -18,3 +18,4 @@ lib/
 
 # Node (frontend)
 node_modules/
+lib
