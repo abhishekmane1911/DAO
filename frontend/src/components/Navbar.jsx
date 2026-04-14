@@ -31,7 +31,7 @@ export default function Navbar({ user, setUser }) {
 
           <button
             onClick={disconnectWallet}
-            className="bg-red-600 px-3 py-1 rounded text-sm"
+            className="bg-red-600 px-3 py-1 rounded text-sm hover:cursor-pointer"
           >
             Disconnect
           </button>
@@ -39,7 +39,7 @@ export default function Navbar({ user, setUser }) {
       ) : (
         <button
           onClick={connectWallet}
-          className="bg-cyan-500 px-4 py-2 rounded text-black"
+          className="bg-cyan-500 px-4 py-2 rounded text-black hover:cursor-pointer"
         >
           Connect Wallet
         </button>
