@@ -8,8 +8,13 @@ export default function ProposalCard({ proposal }) {
     const [executed, setExecuted] = useState(proposal.executed);
 
     const total = yesVotes + noVotes;
-    const yesPercent = (yesVotes / total) * 100;
-    const noPercent = 100 - yesPercent;
+
+    // const total = yesVotes + noVotes;
+
+    const yesPercent = total === 0 ? 0 : (yesVotes / total) * 100;
+    const noPercent = total === 0 ? 0 : (noVotes / total) * 100;
+    // const yesPercent = (yesVotes / total) * 100;
+    // const noPercent = 100 - yesPercent;
 
     const isExpired = Date.now() > proposal.deadline;
     const quorumMet = total >= 30000;
