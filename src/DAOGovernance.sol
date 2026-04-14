@@ -96,6 +96,6 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
     }
 
     //
-    
+    // add here
     //
 }

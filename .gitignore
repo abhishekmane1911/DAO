@@ -14,8 +14,7 @@ docs/
 .env
 
 # Dependencies
-lib/
+lib
 
 # Node (frontend)
 node_modules/
-lib
