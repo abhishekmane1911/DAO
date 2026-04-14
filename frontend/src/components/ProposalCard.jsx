@@ -90,7 +90,7 @@ export default function ProposalCard({ proposal }) {
                 <button
                     onClick={() => handleVote("YES")}
                     disabled={hasVoted || isExpired}
-                    className="flex-1 bg-green-900 text-green-400 py-2 rounded disabled:opacity-40"
+                    className="flex-1 bg-green-900 text-green-400 py-2 rounded disabled:opacity-40 hover:cursor-pointer"
                 >
                     Vote YES
                 </button>
@@ -98,7 +98,7 @@ export default function ProposalCard({ proposal }) {
                 <button
                     onClick={() => handleVote("NO")}
                     disabled={hasVoted || isExpired}
-                    className="flex-1 bg-red-900 text-red-400 py-2 rounded disabled:opacity-40"
+                    className="flex-1 bg-red-900 text-red-400 py-2 rounded disabled:opacity-40 hover:cursor-pointer"
                 >
                     Vote NO
                 </button>
@@ -112,7 +112,7 @@ export default function ProposalCard({ proposal }) {
                     executed ||
                     yesVotes <= noVotes
                 }
-                className="mt-4 w-full bg-cyan-900 text-cyan-400 py-2 rounded disabled:opacity-40"
+                className="mt-4 w-full bg-cyan-900 text-cyan-400 py-2 rounded disabled:opacity-40 hover:cursor-pointer"
             >
                 {executed ? "Executed" : "Execute Proposal"}
             </button>
