@@ -95,7 +95,102 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
         quorumPercentage = _newQuorum;
     }
 
-    //
-    // add here
-    //
+    function createProposal(
+        address target,
+        bytes calldata data,
+        uint256 votingDelay,
+        uint256 votingPeriod
+    ) external returns (uint256) {
+        require(target != address(0), "Invalid target");
+        require(votingPeriod > 0, "Invalid voting period");
+
+        uint256 snapshotId = token.snapshot();
+
+        proposalCount++;
+
+        uint256 startTime = block.timestamp + votingDelay;
+        uint256 endTime = startTime + votingPeriod;
+
+        proposals[proposalCount] = Proposal({
+            id: proposalCount,
+            creator: msg.sender,
+            target: target,
+            data: data,
+            snapshotId: snapshotId,
+            startTime: startTime,
+            endTime: endTime,
+            yesVotes: 0,
+            noVotes: 0,
+            executed: false,
+            canceled: false
+        });
+
+        emit ProposalCreated(
+            proposalCount,
+            msg.sender,
+            target,
+            startTime,
+            endTime
+        );
+
+        return proposalCount;
+    }
+
+    function vote(uint256 proposalId, bool support) external {
+        Proposal storage p = proposals[proposalId];
+
+        require(block.timestamp >= p.startTime, "Voting not started");
+        require(block.timestamp <= p.endTime, "Voting ended");
+        require(!p.canceled, "Proposal canceled");
+        require(!hasVoted[proposalId][msg.sender], "Already voted");
+
+        uint256 weight = token.balanceOfAt(msg.sender, p.snapshotId);
+        require(weight > 0, "No voting power");
+
+        hasVoted[proposalId][msg.sender] = true;
+
+        if (support) {
+            p.yesVotes += weight;
+        } else {
+            p.noVotes += weight;
+        }
+
+        emit Voted(proposalId, msg.sender, support, weight);
+    }
+
+    function executeProposal(uint256 proposalId) external nonReentrant {
+        Proposal storage p = proposals[proposalId];
+
+        require(block.timestamp > p.endTime, "Voting not ended");
+        require(!p.executed, "Already executed");
+        require(!p.canceled, "Proposal canceled");
+
+        uint256 totalVotes = p.yesVotes + p.noVotes;
+        uint256 totalSupplyAtSnapshot = token.totalSupplyAt(p.snapshotId);
+
+        uint256 quorumRequired = (totalSupplyAtSnapshot * quorumPercentage) /
+            100;
+
+        require(totalVotes >= quorumRequired, "Quorum not met");
+        require(p.yesVotes > p.noVotes, "Majority not reached");
+
+        p.executed = true;
+
+        (bool success, ) = p.target.call(p.data);
+        require(success, "Transaction failed");
+
+        emit ProposalExecuted(proposalId);
+    }
+
+    function cancelProposal(uint256 proposalId) external {
+        Proposal storage p = proposals[proposalId];
+
+        require(msg.sender == p.creator, "Not creator");
+        require(block.timestamp < p.startTime, "Voting already started");
+        require(!p.canceled, "Already canceled");
+
+        p.canceled = true;
+
+        emit ProposalCanceled(proposalId);
+    }
 }
