@@ -10,12 +10,16 @@ contract Treasury {
 
     event ValueChanged(uint256 oldValue, uint256 newValue);
     event EthReceived(address sender, uint256 amount);
-    event DAOUpdated(address oldDAO, address newDAO);
+    event DAOUpdated(address oldDao, address newDao);
     event EthWithdrawn(address to, uint256 amount);
 
-    modifier onlyDAO() {
-        require(msg.sender == dao, "Not DAO");
+    modifier onlyDao() {
+        _onlyDao();
         _;
+    }
+
+    function _onlyDao() internal view {
+        require(msg.sender == dao, "Not DAO");
     }
 
     constructor(address _dao) {
@@ -24,27 +28,24 @@ contract Treasury {
     }
 
     /// @notice Changes stored value — called via DAO executeProposal
-    function setValue(uint256 _value) external onlyDAO {
+    function setValue(uint256 _value) external onlyDao {
         emit ValueChanged(value, _value);
         value = _value;
         lastCaller = msg.sender;
     }
 
     /// @notice Updates DAO address
-    function setDAO(address _newDAO) external onlyDAO {
-        require(_newDAO != address(0), "Invalid address");
-
-        emit DAOUpdated(dao, _newDAO);
-        dao = _newDAO;
+    function setDao(address _newDao) external onlyDao {
+        require(_newDao != address(0), "Invalid address");
+        emit DAOUpdated(dao, _newDao);
+        dao = _newDao;
     }
 
     /// @notice Withdraw ETH (controlled by DAO)
-    function withdraw(address payable to, uint256 amount) external onlyDAO {
+    function withdraw(address payable to, uint256 amount) external onlyDao {
         require(address(this).balance >= amount, "Insufficient balance");
-
         (bool success, ) = to.call{value: amount}("");
         require(success, "Transfer failed");
-
         emit EthWithdrawn(to, amount);
     }
 
