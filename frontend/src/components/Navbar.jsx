@@ -1,20 +1,7 @@
-export default function Navbar({ user, setUser }) {
+import { useWeb3 } from "../context/Web3Context";
 
-  const connectWallet = () => {
-    const mockUser = {
-      name: "John Doe",
-      address: "0x12ab...89cd",
-      balance: 1200,
-    };
-
-    setUser(mockUser);
-    localStorage.setItem("daoUser", JSON.stringify(mockUser));
-  };
-
-  const disconnectWallet = () => {
-    setUser(null);
-    localStorage.removeItem("daoUser");
-  };
+export default function Navbar() {
+  const { account, tokenBalance, connectWallet, disconnectWallet } = useWeb3();
 
   return (
     <div className="flex justify-between items-center px-8 py-4 border-b border-gray-800">
@@ -23,10 +10,14 @@ export default function Navbar({ user, setUser }) {
         DAO Governance
       </h1>
 
-      {user ? (
+      {account ? (
         <div className="flex gap-3 items-center">
           <span className="bg-gray-800 px-3 py-1 rounded">
-            {user.name}
+            {account.slice(0, 6)}...{account.slice(-4)}
+          </span>
+
+          <span className="bg-gray-800 px-3 py-1 rounded text-sm text-gray-300">
+            {parseFloat(tokenBalance).toFixed(2)} DGT
           </span>
 
           <button
