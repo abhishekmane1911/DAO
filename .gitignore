@@ -9,7 +9,6 @@ out/
 
 # Docs
 docs/
-CS218_Project_Marks_ppt.docx.pdf
 
 # Dotenv file
 .env
@@ -21,4 +20,7 @@ lib
 node_modules/
 
 .DS_Store
+CS218_Project_Marks_ppt.docx.pdf
+ARCHITECTURE.md
+extracted_text.txt
 

@@ -55,7 +55,7 @@ node --version
 ```bash
 # 1. Clone and install dependencies
 git clone https://github.com/abhishekmane1911/DAO
-cd DAO-main
+cd DAO
 
 # 2. Install OpenZeppelin and other Forge libraries
 forge install
@@ -228,6 +228,36 @@ forge script script/Deploy.s.sol \
 - **Dashboard** — all proposals with status (Pending / Active / Ended / Executed / Canceled), live countdown timers, quorum ring chart
 - **Create Proposal** — title, description, cover image (uploaded to IPFS), target contract, calldata, voting delay & period
 - **Proposal Detail** — full metadata from IPFS, vote yes/no, execute, cancel buttons
+
+---
+
+## Local Development & Troubleshooting
+
+When developing locally with Anvil and MetaMask, you may encounter a few common blockchain state issues. Follow these instructions to resolve them:
+
+### 1. Fast-Forwarding Time (To test Proposal Execution)
+Anvil's block time only advances when a transaction is mined. If your frontend says a proposal has "Ended" but the smart contract throws a `VotingNotEnded()` error, you need to manually advance the blockchain time.
+Run this command in a new terminal to warp time forward by 1 day (86400 seconds) and mine a block:
+```bash
+cast rpc evm_increaseTime 86400 && cast rpc evm_mine
+```
+You can then click "Execute" in the frontend successfully.
+
+### 2. "BAD_DATA" or "CALL_EXCEPTION" in Frontend
+If you restart your Anvil node, the blockchain is wiped clean. If you run the deploy script again, your contracts will have **new addresses**.
+If your frontend throws a `BAD_DATA` error, it is trying to read from the old dead addresses.
+**Fix:**
+1. Check the terminal where you ran `forge script` for the new deployed addresses.
+2. Open `frontend/src/config.js` and update `MintableToken`, `DAOGovernance`, and `Treasury` with the new addresses.
+3. Save the file and refresh your browser.
+
+### 3. Transactions Failing Silently in MetaMask (Nonce Error)
+If you restart Anvil, MetaMask's internal transaction count (nonce) gets out of sync with the fresh blockchain. 
+**Fix:**
+1. Open MetaMask.
+2. Go to **Settings > Advanced**.
+3. Click **Clear activity tab data** (or "Reset Account").
+4. This safely resets the nonce for the local network.
 
 ---
 
