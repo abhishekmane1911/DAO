@@ -5,37 +5,55 @@ import {AccessControl} from "../lib/openzeppelin-contracts/contracts/access/Acce
 import {ReentrancyGuard} from "../lib/openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
 import {MintableToken} from "./MintableToken.sol";
 
-/// @title DAOGovernance
-/// @notice Governance contract for proposal creation, voting, and execution
+/**
+ * @title DAOGovernance
+ * @author DAO Team
+ * @notice A governance contract that allows token holders to create, vote on, and execute proposals.
+ * @dev This contract uses OpenZeppelin's AccessControl and ReentrancyGuard. 
+ * It relies on an ERC20Snapshot token for voting power.
+ */
 contract DAOGovernance is AccessControl, ReentrancyGuard {
+    /// @notice Role for contract administrators
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
+    /// @notice The governance token used for voting
     MintableToken public token;
-    uint256 public quorumPercentage = 35; // making it 35
 
-    //OPTIMIZATION 1: Struct packing
-    // bools packed with address into same 32-byte slot → saves 2 storage slots
+    /// @notice Percentage of total supply required to reach quorum (0-100)
+    uint256 public quorumPercentage = 35;
+
+    /**
+     * @dev Proposal structure containing all relevant details for a governance proposal.
+     * OPTIMIZATION 1: Struct packing
+     * bools packed with address into same 32-byte slot → saves storage slots.
+     */
     struct Proposal {
         uint256 id;
         uint256 snapshotId;
-        uint256 startTime;
-        uint256 endTime;
         uint256 yesVotes;
         uint256 noVotes;
-        address creator;
-        bool executed;   // packed with creator in same slot
-        bool canceled;   // packed in same slot
         address target;
-        bytes data;
+        address creator;  // Slot X (20 bytes)
+        uint32 startTime; // Slot X (4 bytes)
+        uint32 endTime;   // Slot X (4 bytes)
+        bool executed;    // Slot X (1 byte)
+        bool canceled;    // Slot X (1 byte)
+        bytes data;       // Slot X+1...
     }
 
+    /// @notice Total number of proposals created
     uint256 public proposalCount;
+
+    /// @notice Mapping from proposal ID to Proposal details
     mapping(uint256 => Proposal) public proposals;
+
+    /// @notice Mapping from proposal ID to voter address to voting status
     mapping(uint256 => mapping(address => bool)) public hasVoted;
 
-    //OPTIMIZATION 2: Custom error
-    // custom errors cost ~50-200 gas less per revert than require strings
-    // because strings are stored as bytes in bytecode
+    /**
+     * @dev Custom errors for gas efficiency.
+     * OPTIMIZATION 2: Custom errors cost ~50-200 gas less per revert than require strings.
+     */
     error InvalidTokenAddress();
     error InvalidTarget();
     error InvalidVotingPeriod();
@@ -54,10 +72,15 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
     error VotingAlreadyStarted();
     error AlreadyCanceled();
 
-    //OPTIMIZATION 3: Description in event not storage
-    // storing string on-chain costs ~20,000 gas (SSTORE)
-    // emitting in event costs ~375 gas
-    // description is human-readable context only — does not affect contract logic
+    /**
+     * @notice Emitted when a new proposal is created
+     * @param id The unique identifier of the proposal
+     * @param creator The address that created the proposal
+     * @param target The target contract for execution
+     * @param startTime The timestamp when voting begins
+     * @param endTime The timestamp when voting ends
+     * @param description A brief description of the proposal
+     */
     event ProposalCreated(
         uint256 indexed id,
         address indexed creator,
@@ -67,6 +90,13 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
         string description
     );
 
+    /**
+     * @notice Emitted when a vote is cast
+     * @param id The ID of the proposal
+     * @param voter The address of the voter
+     * @param support True if voted YES, false if voted NO
+     * @param weight The voting power used (token balance at snapshot)
+     */
     event Voted(
         uint256 indexed id,
         address indexed voter,
@@ -74,21 +104,33 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
         uint256 weight
     );
 
+    /// @notice Emitted when a proposal is executed
     event ProposalExecuted(uint256 indexed id);
+
+    /// @notice Emitted when a proposal is canceled
     event ProposalCanceled(uint256 indexed id);
+
+    /// @notice Emitted when the quorum percentage is updated
     event QuorumUpdated(uint256 oldQuorum, uint256 newQuorum);
 
+    /**
+     * @notice Initializes the governance contract
+     * @param _tokenAddress The address of the MintableToken used for voting
+     */
     constructor(address _tokenAddress) {
         if (_tokenAddress == address(0)) revert InvalidTokenAddress();
 
-        token = MintableToken(_tokenAddress); // not a call but type casting
+        token = MintableToken(_tokenAddress);
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);
     }
 
-    /// @notice Update quorum percentage
-    /// @param _newQuorum New quorum value between 1 and 100
+    /**
+     * @notice Updates the quorum percentage required for proposals to pass
+     * @dev Only callable by accounts with ADMIN_ROLE
+     * @param _newQuorum The new quorum percentage (1-100)
+     */
     function updateQuorum(uint256 _newQuorum) external onlyRole(ADMIN_ROLE) {
         if (_newQuorum == 0 || _newQuorum > 100) revert InvalidQuorum();
 
@@ -96,45 +138,55 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
         quorumPercentage = _newQuorum;
     }
 
-    /// @notice Create a new governance proposal
-    /// @param target Contract address to call on execution
-    /// @param data Encoded function call to execute
-    /// @param votingDelay Seconds before voting starts
-    /// @param votingPeriod Seconds voting remains open
-    /// @param description Human-readable proposal description — stored in event log not storage
+    /**
+     * @notice Creates a new governance proposal
+     * @param target The address of the contract to be called if the proposal passes
+     * @param data The calldata to be executed on the target contract
+     * @param votingDelay The delay (in seconds) before voting starts
+     * @param votingPeriod The duration (in seconds) that voting remains open
+     * @param description A human-readable description of the proposal
+     * @return The unique ID of the newly created proposal
+     * @dev OPTIMIZATION 3: description in event not storage saves ~20k gas
+     * @dev OPTIMIZATION 4: calldata instead of memory for parameters saves ~200 gas
+     */
     function createProposal(
         address target,
-        bytes calldata data,        // OPTIMIZATION 4: calldata not memory — saves ~200 gas
+        bytes calldata data,
         uint256 votingDelay,
         uint256 votingPeriod,
-        string calldata description // calldata not memory — saves ~200 gas
+        string calldata description
     ) external returns (uint256) {
         if (target == address(0)) revert InvalidTarget();
         if (votingPeriod == 0)    revert InvalidVotingPeriod();
 
         uint256 snapshotId = token.snapshot();
 
-        proposalCount++;
+        // OPTIMIZATION: unchecked increment for gas efficiency (overflow impossible in realistic DAO lifetime)
+        uint256 currentId;
+        unchecked {
+            proposalCount++;
+            currentId = proposalCount;
+        }
 
         uint256 startTime = block.timestamp + votingDelay;
         uint256 endTime   = startTime + votingPeriod;
 
-        proposals[proposalCount] = Proposal({
-            id:         proposalCount,
+        proposals[currentId] = Proposal({
+            id:         currentId,
             snapshotId: snapshotId,
-            startTime:  startTime,
-            endTime:    endTime,
             yesVotes:   0,
             noVotes:    0,
+            target:     target,
             creator:    msg.sender,
+            startTime:  uint32(startTime),
+            endTime:    uint32(endTime),
             executed:   false,
             canceled:   false,
-            target:     target,
             data:       data
         });
 
         emit ProposalCreated(
-            proposalCount,
+            currentId,
             msg.sender,
             target,
             startTime,
@@ -142,18 +194,23 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
             description
         );
 
-        return proposalCount;
+        return currentId;
     }
 
-    /// @notice Cast a vote on a proposal
-    /// @param proposalId ID of the proposal to vote on
-    /// @param support True for YES, false for NO
+    /**
+     * @notice Casts a vote on an active proposal
+     * @param proposalId The ID of the proposal to vote on
+     * @param support Set to true for YES, false for NO
+     * @dev Voting power is determined by the token balance at the proposal's snapshot ID
+     */
     function vote(uint256 proposalId, bool support) external {
         Proposal storage p = proposals[proposalId];
 
-        // OPTIMIZATION 5: Cache storage reads into memory
-        // each SLOAD costs 100 gas — reading p.startTime twice = 200 gas
-        // caching into memory = 100 gas first read + 3 gas subsequent reads
+        /**
+         * OPTIMIZATION 5: Cache storage reads into memory
+         * Reading p.startTime twice costs 200 gas (SLOAD). 
+         * Caching into memory costs 100 gas for first read and 3 gas for subsequent reads.
+         */
         uint256 start    = p.startTime;
         uint256 end      = p.endTime;
         bool    canceled = p.canceled;
@@ -178,8 +235,12 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
         emit Voted(proposalId, msg.sender, support, weight);
     }
 
-    /// @notice Execute a passed proposal after voting ends
-    /// @param proposalId ID of the proposal to execute
+    /**
+     * @notice Executes a passed proposal
+     * @param proposalId The ID of the proposal to execute
+     * @dev Requirements: voting must be ended, quorum must be met, YES votes must exceed NO votes.
+     * Uses nonReentrant modifier to prevent reentrancy during the external call.
+     */
     function executeProposal(uint256 proposalId) external nonReentrant {
         Proposal storage p = proposals[proposalId];
 
@@ -202,8 +263,11 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
         emit ProposalExecuted(proposalId);
     }
 
-    /// @notice Cancel a proposal before voting starts
-    /// @param proposalId ID of the proposal to cancel
+    /**
+     * @notice Cancels a proposal before voting has started
+     * @param proposalId The ID of the proposal to cancel
+     * @dev Only the proposal creator can cancel it, and only before the start time.
+     */
     function cancelProposal(uint256 proposalId) external {
         Proposal storage p = proposals[proposalId];
 

@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { ethers } from "ethers";
 import { toast } from "react-hot-toast";
 import { useWeb3 } from "../context/Web3Context";
 import { useNavigate, Link } from "react-router-dom";
+import { uploadFileToPinata, uploadJSONToPinata } from "../utils/pinata";
 
 /* ─── Inject shared font + keyframes (idempotent) ─── */
 function useSharedFonts() {
@@ -139,9 +140,30 @@ export default function CreateProposal() {
   const [calldata, setCalldata] = useState("0x");
   const [votingDelay, setVotingDelay] = useState(0);
   const [votingPeriod, setVotingPeriod] = useState(86400);
+  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [uploadStep, setUploadStep] = useState(""); // progress label
   const [step, setStep] = useState(1);
+  const fileInputRef = useRef(null);
+
+  /** Convert a File to a base64 data URL (survives page reloads, unlike blob: URLs) */
+  const fileToBase64 = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) return toast.error("Image must be under 10 MB");
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file)); // only for in-session preview
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -154,14 +176,44 @@ export default function CreateProposal() {
 
     setLoading(true);
     try {
+      // ── Step 1: Upload image to IPFS (if provided) ──
+      let imageCid = null;
+      let imageBase64 = null; // base64 data URL — survives page reloads
+      if (imageFile) {
+        setUploadStep("Uploading image to IPFS…");
+        toast.loading("Uploading image…", { id: "create" });
+        // Convert to base64 BEFORE upload so we can cache it keyed by the CID
+        imageBase64 = await fileToBase64(imageFile);
+        imageCid = await uploadFileToPinata(imageFile);
+        // ✅ Store base64 (not blob URL) — survives page reloads
+        try { localStorage.setItem(`dao_ipfs_img_${imageCid}`, imageBase64); } catch { /* quota */ }
+      }
+
+      // ── Step 2: Upload metadata JSON to IPFS ──
+      setUploadStep("Uploading metadata to IPFS…");
+      toast.loading("Uploading metadata…", { id: "create" });
+      const metadata = {
+        title: title || "Untitled Proposal",
+        description: description || "",
+        image: imageCid ? `ipfs://${imageCid}` : null,
+        // No imageLocal in JSON — resolveIPFS reads from localStorage by CID
+        author: account,
+        createdAt: Math.floor(Date.now() / 1000),
+      };
+      const metadataCid = await uploadJSONToPinata(metadata);
+      const ipfsDescription = `ipfs://${metadataCid}`;
+
+      // ── Step 3: Submit on-chain ──
+      setUploadStep("Submitting to blockchain…");
+      toast.loading("Creating proposal…", { id: "create" });
       const tx = await daoContract.createProposal(
         target,
         calldata,
         Number(votingDelay),
-        Number(votingPeriod)
+        Number(votingPeriod),
+        ipfsDescription
       );
 
-      toast.loading("Creating proposal…", { id: "create" });
       const receipt = await tx.wait();
 
       const event = receipt.logs
@@ -178,6 +230,7 @@ export default function CreateProposal() {
       toast.error(err?.reason || err?.message || "Failed to create proposal", { id: "create" });
     } finally {
       setLoading(false);
+      setUploadStep("");
     }
   };
 
@@ -299,6 +352,16 @@ export default function CreateProposal() {
         {step === 1 ? (
           <div className="dgt-fade-up-d2" style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
 
+            <Field label="Title" required hint="A short, clear title for this proposal.">
+              <StyledInput
+                type="text"
+                mono={false}
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="e.g. Fund the developer grants program"
+              />
+            </Field>
+
             <Field label="Target Address" required hint="The contract address this proposal will call on execution.">
               <StyledInput
                 type="text"
@@ -317,13 +380,69 @@ export default function CreateProposal() {
               />
             </Field>
 
-            <Field label="Description" hint="Optional. Stored locally for display — not sent on-chain.">
+            <Field label="Description" hint="Stored on IPFS. Describe what this proposal does and why it matters.">
               <StyledTextarea
                 value={description}
                 onChange={e => setDescription(e.target.value)}
                 rows={4}
                 placeholder="Describe what this proposal does, why it matters, and what the expected outcome is…"
               />
+            </Field>
+
+            <Field label="Cover Image" hint="Optional. Upload an image to be stored on IPFS alongside your proposal.">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                style={{ display: "none" }}
+              />
+              {imagePreview ? (
+                <div style={{ position: "relative" }}>
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    style={{
+                      width: "100%", maxHeight: "180px", objectFit: "cover",
+                      borderRadius: "8px", border: "1px solid rgba(255,255,255,0.08)",
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => { setImageFile(null); setImagePreview(null); fileInputRef.current.value = ""; }}
+                    style={{
+                      position: "absolute", top: "8px", right: "8px",
+                      background: "rgba(0,0,0,0.6)", border: "none", borderRadius: "50%",
+                      width: "28px", height: "28px", cursor: "pointer",
+                      color: "#fff", fontSize: "14px", lineHeight: "28px", textAlign: "center",
+                    }}
+                  >×</button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current.click()}
+                  style={{
+                    ...fieldBase,
+                    textAlign: "center", cursor: "pointer",
+                    padding: "28px 16px",
+                    border: "1px dashed rgba(255,255,255,0.12)",
+                    color: "#555", fontSize: "12px",
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: "8px",
+                    transition: "border-color 0.2s, color 0.2s",
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(245,158,11,0.4)"; e.currentTarget.style.color = "#aaa"; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; e.currentTarget.style.color = "#555"; }}
+                >
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="3" y="3" width="18" height="18" rx="3"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <path d="M21 15l-5-5L5 21"/>
+                  </svg>
+                  Click to upload image
+                  <span style={{ fontSize: "10px", color: "#444" }}>PNG, JPG, GIF up to 10MB</span>
+                </button>
+              )}
             </Field>
 
             {/* Divider */}
@@ -495,8 +614,9 @@ export default function CreateProposal() {
                       borderRadius: "50%",
                       animation: "spin 0.7s linear infinite",
                       display: "inline-block",
+                      flexShrink: 0,
                     }} />
-                    Submitting…
+                    {uploadStep || "Submitting…"}
                   </>
                 ) : "Submit Proposal"}
               </button>

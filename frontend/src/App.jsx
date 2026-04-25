@@ -3,6 +3,7 @@ import Navbar from "./components/Navbar";
 import Landing from "./pages/Landing";
 import Dashboard from "./pages/Dashboard";
 import CreateProposal from "./pages/CreateProposal";
+import ProposalDetail from "./pages/ProposalDetail";
 import { Toaster } from "react-hot-toast";
 
 function App() {
@@ -12,9 +13,10 @@ function App() {
 
       <main className="w-full">
         <Routes>
-          <Route path="/"       element={<Landing />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/create" element={<CreateProposal />} />
+          <Route path="/"                  element={<Landing />} />
+          <Route path="/dashboard"         element={<Dashboard />} />
+          <Route path="/create"            element={<CreateProposal />} />
+          <Route path="/proposal/:id"      element={<ProposalDetail />} />
         </Routes>
       </main>
 

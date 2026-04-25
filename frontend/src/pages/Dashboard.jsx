@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { useWeb3 } from "../context/Web3Context";
 import ProposalCard from "../components/ProposalCard";
 import UserPanel from "../components/UserPanel";
+import { fetchProposalMetadata } from "../utils/pinata";
 
 /* ─── Inject shared fonts (idempotent) ─── */
 function useSharedFonts() {
@@ -32,7 +33,7 @@ function useSharedFonts() {
   }, []);
 }
 
-const FILTERS = ["All", "Active", "Ended", "Executed"];
+const FILTERS = ["All", "Pending", "Active", "Ended", "Executed"];
 
 /* ─── Skeleton card ─── */
 function SkeletonCard() {
@@ -258,8 +259,22 @@ export default function Dashboard() {
       const total = Number(count);
       const fetched = [];
 
+      // ── Fetch ProposalCreated events to get the description (IPFS CID) ──
+      const filter = daoContract.filters.ProposalCreated();
+      const events = await daoContract.queryFilter(filter, 0, "latest");
+      // Build a map: proposalId -> description string
+      const descMap = {};
+      for (const ev of events) {
+        descMap[Number(ev.args.id)] = ev.args.description || "";
+      }
+
       for (let i = 1; i <= total; i++) {
         const p = await daoContract.proposals(i);
+        const descCid = descMap[i] || "";
+
+        // Fetch IPFS metadata (non-blocking — fallback to null if unavailable)
+        const ipfsMeta = await fetchProposalMetadata(descCid).catch(() => null);
+
         fetched.push({
           id: Number(p.id),
           creator: p.creator,
@@ -271,6 +286,10 @@ export default function Dashboard() {
           noVotes: ethers.formatEther(p.noVotes),
           executed: p.executed,
           canceled: p.canceled,
+          // IPFS enrichment
+          ipfsTitle:       ipfsMeta?.title       || null,
+          ipfsDescription: ipfsMeta?.description || null,
+          ipfsImage:       ipfsMeta?.image       || null,
         });
       }
 
@@ -293,10 +312,10 @@ export default function Dashboard() {
 
   let filtered = proposals.filter((p) => {
     if (filter !== "All") {
-      const isActive = now >= p.startTime && now <= p.endTime && !p.canceled && !p.executed;
-      const isEnded = now > p.endTime && !p.executed && !p.canceled;
-      if (filter === "Active" && !isActive) return false;
-      if (filter === "Ended" && !isEnded) return false;
+      const now = Math.floor(Date.now() / 1000);
+      if (filter === "Pending" && (p.executed || p.canceled || now >= p.startTime)) return false;
+      if (filter === "Active" && (p.executed || p.canceled || now < p.startTime || now > p.endTime)) return false;
+      if (filter === "Ended" && (p.executed || p.canceled || now <= p.endTime)) return false;
       if (filter === "Executed" && !p.executed) return false;
     }
     if (searchQuery) {

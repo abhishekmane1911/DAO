@@ -3,6 +3,8 @@ import { ethers } from "ethers";
 import { toast } from "react-hot-toast";
 import { useWeb3 } from "../context/Web3Context";
 import confetti from "canvas-confetti";
+import { resolveIPFS } from "../utils/pinata";
+import { Link } from "react-router-dom";
 
 /** Status badge configs */
 const STATUS = {
@@ -20,6 +22,15 @@ function getStatus(proposal) {
   if (now < Number(proposal.startTime)) return STATUS.pending;
   if (now <= Number(proposal.endTime))  return STATUS.active;
   return STATUS.ended;
+}
+
+function getStatusKey(proposal) {
+  if (proposal.canceled) return "canceled";
+  if (proposal.executed) return "executed";
+  const now = Math.floor(Date.now() / 1000);
+  if (now < Number(proposal.startTime)) return "pending";
+  if (now <= Number(proposal.endTime))  return "active";
+  return "ended";
 }
 
 /** Countdown hook */
@@ -56,6 +67,8 @@ export default function ProposalCard({ proposal, onRefresh }) {
   const [loading, setLoading]               = useState(false);
   const [snapshotSupply, setSnapshotSupply] = useState(0);
 
+  const [quorumPct, setQuorumPct]           = useState(35); // default 35%
+
   const yesVotes  = parseFloat(proposal.yesVotes);
   const noVotes   = parseFloat(proposal.noVotes);
   const total     = yesVotes + noVotes;
@@ -65,10 +78,15 @@ export default function ProposalCard({ proposal, onRefresh }) {
   const now       = Math.floor(Date.now() / 1000);
   const isExpired = now > Number(proposal.endTime);
   const isActive  = now >= Number(proposal.startTime) && now <= Number(proposal.endTime);
-  const quorumMet = snapshotSupply > 0 && total >= (snapshotSupply * 0.30);
+  const quorumMet = snapshotSupply > 0 && total >= (snapshotSupply * (quorumPct / 100));
 
-  const status    = getStatus(proposal);
-  const countdown = useCountdown(proposal.endTime);
+  const statusKey = getStatusKey(proposal);
+  const status    = STATUS[statusKey];
+  
+  // Decide which time to countdown to
+  const targetTime = statusKey === "pending" ? proposal.startTime : proposal.endTime;
+  const countdown  = useCountdown(targetTime);
+  const showCountdown = (statusKey === "pending" || statusKey === "active") && countdown;
 
   // fetch snapshot total supply
   useEffect(() => {
@@ -83,6 +101,11 @@ export default function ProposalCard({ proposal, onRefresh }) {
     if (!daoContract || !account) return;
     daoContract.hasVoted(proposal.id, account)
       .then(setHasVoted)
+      .catch(console.error);
+      
+    // fetch the actual quorum percentage
+    daoContract.quorumPercentage()
+      .then(q => setQuorumPct(Number(q)))
       .catch(console.error);
   }, [daoContract, account, proposal.id]);
 
@@ -163,9 +186,10 @@ export default function ProposalCard({ proposal, onRefresh }) {
         </span>
 
         <div className="flex items-center gap-2">
-          {countdown && (
-            <span className="text-xs font-mono" style={{ color: "var(--color-text-muted)" }}>
-              {countdown}
+          {showCountdown && (
+            <span className="text-[10px] font-mono uppercase tracking-wider" style={{ color: "var(--color-text-muted)" }}>
+              {statusKey === "pending" ? "Starts in " : "Ends in "}
+              <span style={{ color: status.color }}>{countdown}</span>
             </span>
           )}
           <span
@@ -180,6 +204,49 @@ export default function ProposalCard({ proposal, onRefresh }) {
           </span>
         </div>
       </div>
+
+      {/* IPFS Cover Image */}
+      {proposal.ipfsImage && (
+        <div style={{ marginBottom: "16px", borderRadius: "8px", overflow: "hidden" }}>
+          <img
+            src={resolveIPFS(proposal.ipfsImage)}
+            alt="Proposal cover"
+            style={{
+              width: "100%", maxHeight: "160px",
+              objectFit: "cover", display: "block",
+            }}
+            onError={e => { e.currentTarget.style.display = "none"; }}
+          />
+        </div>
+      )}
+
+      {/* IPFS Title + Description */}
+      {(proposal.ipfsTitle || proposal.ipfsDescription) && (
+        <div style={{ marginBottom: "16px" }}>
+          {proposal.ipfsTitle && (
+            <p style={{
+              fontFamily: "'Cormorant Garamond', serif",
+              fontSize: "16px", fontWeight: 600,
+              color: "var(--color-text)",
+              margin: "0 0 6px", lineHeight: 1.3,
+            }}>
+              {proposal.ipfsTitle}
+            </p>
+          )}
+          {proposal.ipfsDescription && (
+            <p style={{
+              fontSize: "12px", color: "var(--color-text-muted)",
+              margin: 0, lineHeight: 1.6,
+              display: "-webkit-box",
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: "vertical",
+              overflow: "hidden",
+            }}>
+              {proposal.ipfsDescription}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Target */}
       <div className="mb-4">
@@ -334,6 +401,24 @@ export default function ProposalCard({ proposal, onRefresh }) {
       >
         {proposal.executed ? "✓ Executed" : loading ? "Executing…" : "Execute Proposal"}
       </button>
+
+      {/* View detail page */}
+      <Link
+        to={`/proposal/${proposal.id}`}
+        style={{
+          display: "block", marginTop: "10px", textAlign: "center",
+          padding: "9px", borderRadius: "8px",
+          border: "1px solid rgba(255,255,255,0.06)",
+          fontFamily: "'Space Mono', monospace", fontSize: "10px",
+          letterSpacing: "0.1em", textTransform: "uppercase",
+          color: "#555", textDecoration: "none",
+          transition: "all 0.2s ease",
+        }}
+        onMouseEnter={e => { e.currentTarget.style.color="#aaa"; e.currentTarget.style.borderColor="rgba(255,255,255,0.14)"; }}
+        onMouseLeave={e => { e.currentTarget.style.color="#555"; e.currentTarget.style.borderColor="rgba(255,255,255,0.06)"; }}
+      >
+        View Details →
+      </Link>
     </div>
   );
 }

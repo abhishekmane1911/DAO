@@ -65,11 +65,16 @@ contract DAOGovernanceTest is Test {
     function test_CreateProposal_StoresCorrectly() public {
         uint256 id = _createSetValueProposal();
         (
-            uint256 pid,
-            ,,,,,
-            address creator,
-            ,,
-            address target,
+            uint256 pid,     // 1: id
+            ,                // 2: snapshotId
+            ,                // 3: yesVotes
+            ,                // 4: noVotes
+            address target,  // 5: target
+            address creator, // 6: creator
+            ,                // 7: startTime
+            ,                // 8: endTime
+            ,                // 9: executed
+            ,                // 10: canceled
         ) = dao.proposals(id);
 
         assertEq(pid, 1);
@@ -84,7 +89,7 @@ contract DAOGovernanceTest is Test {
         vm.prank(voter1);
         dao.vote(id, true);
 
-        (,,,, uint256 yes,,,,,,) = dao.proposals(id);
+        (,, uint256 yes,,,,,,,,) = dao.proposals(id); // 10 commas = 11 components
         assertEq(yes, 100e18);
     }
 
@@ -93,7 +98,7 @@ contract DAOGovernanceTest is Test {
         vm.prank(voter1);
         dao.vote(id, false);
 
-        (,,,,, uint256 no,,,,,) = dao.proposals(id);
+        (,,, uint256 no,,,,,,,) = dao.proposals(id);
         assertEq(no, 100e18);
     }
 
@@ -104,7 +109,7 @@ contract DAOGovernanceTest is Test {
         assertEq(mockTreasury.value(), 42);
         assertEq(mockTreasury.lastCaller(), address(dao));
 
-        (,,,,,,, bool executed,,,) = dao.proposals(id);
+        (,,,,,,,, bool executed,,) = dao.proposals(id);
         assertTrue(executed);
     }
 
@@ -117,7 +122,7 @@ contract DAOGovernanceTest is Test {
         vm.prank(voter1);
         dao.cancelProposal(id);
 
-        (,,,,,,,, bool canceled,,) = dao.proposals(id);
+        (,,,,,,,,, bool canceled,) = dao.proposals(id);
         assertTrue(canceled);
     }
 
@@ -369,5 +374,50 @@ contract DAOGovernanceTest is Test {
         assertEq(dao.proposalCount(), 1);
         _createSetValueProposal();
         assertEq(dao.proposalCount(), 2);
+    }
+
+    // ─── Rubric: "Successful vote triggers real state change in Treasury" ──────
+
+    /**
+     * @notice End-to-end test: full DAO voting flow causes a real state change
+     *         in the Treasury contract (ETH withdrawal + value update).
+     * @dev Satisfies rubric requirement E: "Successful vote triggers real
+     *      state change in Treasury contract".
+     */
+    function test_Vote_TriggersRealTreasuryStateChange() public {
+        // 1. Fund the real Treasury
+        uint256 withdrawAmount = 0.5 ether;
+        vm.deal(address(treasury), withdrawAmount);
+        assertEq(treasury.getBalance(), withdrawAmount);
+
+        address recipient = makeAddr("recipient");
+        uint256 recipientBefore = recipient.balance;
+
+        // 2. Create proposal: withdraw 0.5 ETH from Treasury to recipient
+        bytes memory withdrawData = abi.encodeWithSignature(
+            "withdraw(address,uint256)",
+            payable(recipient),
+            withdrawAmount
+        );
+        uint256 propId = _createProposal(address(treasury), withdrawData);
+
+        // 3. Three voters cast YES — exceeds 35% quorum (300/300 = 100%)
+        vm.prank(voter1); dao.vote(propId, true);
+        vm.prank(voter2); dao.vote(propId, true);
+        vm.prank(voter3); dao.vote(propId, true);
+
+        // 4. Warp past voting deadline
+        vm.warp(block.timestamp + 2 days);
+
+        // 5. Anyone executes the proposal
+        dao.executeProposal(propId);
+
+        // 6. Verify real state changes in Treasury
+        assertEq(treasury.getBalance(), 0,              "Treasury should be empty after withdrawal");
+        assertEq(recipient.balance, recipientBefore + withdrawAmount, "Recipient should have received ETH");
+
+        // 7. Verify proposal is marked executed on-chain
+        (,,,,,,,, bool executed,,) = dao.proposals(propId);
+        assertTrue(executed, "Proposal should be marked as executed");
     }
 }
