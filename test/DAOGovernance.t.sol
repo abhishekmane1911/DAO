@@ -13,18 +13,18 @@ contract DAOGovernanceTest is Test {
     Treasury treasury;
     MockTreasury mockTreasury;
 
-    address admin = address(1);
-    address voter1 = address(2);
-    address voter2 = address(3);
-    address voter3 = address(4);
+    address admin     = address(1);
+    address voter1    = address(2);
+    address voter2    = address(3);
+    address voter3    = address(4);
     address nonHolder = address(5);
 
     function setUp() public {
         vm.startPrank(admin);
 
-        token = new MintableToken();
-        dao = new DAOGovernance(address(token));
-        treasury = new Treasury(address(dao));
+        token        = new MintableToken();
+        dao          = new DAOGovernance(address(token));
+        treasury     = new Treasury(address(dao));
         mockTreasury = new MockTreasury();
 
         token.grantRole(token.SNAPSHOT_ROLE(), address(dao));
@@ -37,9 +37,11 @@ contract DAOGovernanceTest is Test {
         vm.stopPrank();
     }
 
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
     function _createProposal(address target, bytes memory data) internal returns (uint256) {
         vm.prank(voter1);
-        return dao.createProposal(target, data, 0, 1 days);
+        return dao.createProposal(target, data, 0, 1 days, "Test proposal");
     }
 
     function _createSetValueProposal() internal returns (uint256) {
@@ -55,13 +57,16 @@ contract DAOGovernanceTest is Test {
         dao.executeProposal(proposalId);
     }
 
+    // ─── Core tests ───────────────────────────────────────────────────────────
+
     function test_CreateProposal_StoresCorrectly() public {
         uint256 id = _createSetValueProposal();
         (
             uint256 pid,
+            ,,,,,
             address creator,
+            ,,
             address target,
-            ,,,,,,,
         ) = dao.proposals(id);
 
         assertEq(pid, 1);
@@ -74,7 +79,7 @@ contract DAOGovernanceTest is Test {
         vm.prank(voter1);
         dao.vote(id, true);
 
-        (,,,,,,,uint256 yes,,, ) = dao.proposals(id);
+        (,,,, uint256 yes,,,,,,) = dao.proposals(id);
         assertEq(yes, 100e18);
     }
 
@@ -83,7 +88,7 @@ contract DAOGovernanceTest is Test {
         vm.prank(voter1);
         dao.vote(id, false);
 
-        (,,,,,,,,uint256 no,, ) = dao.proposals(id);
+        (,,,,, uint256 no,,,,,) = dao.proposals(id);
         assertEq(no, 100e18);
     }
 
@@ -94,7 +99,7 @@ contract DAOGovernanceTest is Test {
         assertEq(mockTreasury.value(), 42);
         assertEq(mockTreasury.lastCaller(), address(dao));
 
-        (,,,,,,,,,bool executed, ) = dao.proposals(id);
+        (,,,,,,, bool executed,,,) = dao.proposals(id);
         assertTrue(executed);
     }
 
@@ -102,12 +107,12 @@ contract DAOGovernanceTest is Test {
         bytes memory data = abi.encodeWithSignature("setValue(uint256)", 42);
 
         vm.prank(voter1);
-        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days);
+        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days, "Cancel test");
 
         vm.prank(voter1);
         dao.cancelProposal(id);
 
-        (,,,,,,,,,, bool canceled) = dao.proposals(id);
+        (,,,,,,,, bool canceled,,) = dao.proposals(id);
         assertTrue(canceled);
     }
 
@@ -142,10 +147,12 @@ contract DAOGovernanceTest is Test {
         assertEq(dao.quorumPercentage(), 50);
     }
 
+    // ─── Revert tests ─────────────────────────────────────────────────────────
+
     function test_Revert_NonTokenHolderCannotVote() public {
         uint256 id = _createSetValueProposal();
         vm.prank(nonHolder);
-        vm.expectRevert("No voting power");
+        vm.expectRevert(DAOGovernance.NoVotingPower.selector);
         dao.vote(id, true);
     }
 
@@ -155,7 +162,7 @@ contract DAOGovernanceTest is Test {
         dao.vote(id, true);
 
         vm.prank(voter1);
-        vm.expectRevert("Already voted");
+        vm.expectRevert(DAOGovernance.AlreadyVoted.selector);
         dao.vote(id, true);
     }
 
@@ -163,7 +170,7 @@ contract DAOGovernanceTest is Test {
         uint256 id = _createSetValueProposal();
         vm.warp(block.timestamp + 2 days);
 
-        vm.expectRevert("Quorum not met");
+        vm.expectRevert(DAOGovernance.QuorumNotMet.selector);
         dao.executeProposal(id);
     }
 
@@ -173,7 +180,7 @@ contract DAOGovernanceTest is Test {
         vm.prank(voter2); dao.vote(id, true);
         vm.prank(voter3); dao.vote(id, true);
 
-        vm.expectRevert("Voting not ended");
+        vm.expectRevert(DAOGovernance.VotingNotEnded.selector);
         dao.executeProposal(id);
     }
 
@@ -184,7 +191,7 @@ contract DAOGovernanceTest is Test {
         vm.prank(voter3); dao.vote(id, false);
 
         vm.warp(block.timestamp + 2 days);
-        vm.expectRevert("Majority not reached");
+        vm.expectRevert(DAOGovernance.MajorityNotReached.selector);
         dao.executeProposal(id);
     }
 
@@ -193,7 +200,7 @@ contract DAOGovernanceTest is Test {
         vm.warp(block.timestamp + 2 days);
 
         vm.prank(voter1);
-        vm.expectRevert("Voting ended");
+        vm.expectRevert(DAOGovernance.VotingEnded.selector);
         dao.vote(id, true);
     }
 
@@ -201,7 +208,7 @@ contract DAOGovernanceTest is Test {
         uint256 id = _createSetValueProposal();
         _passAndExecute(id);
 
-        vm.expectRevert("Already executed");
+        vm.expectRevert(DAOGovernance.AlreadyExecuted.selector);
         dao.executeProposal(id);
     }
 
@@ -209,15 +216,15 @@ contract DAOGovernanceTest is Test {
         bytes memory data = abi.encodeWithSignature("setValue(uint256)", 1);
 
         vm.prank(voter1);
-        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days);
+        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days, "Cancel vote test");
 
         vm.prank(voter1);
         dao.cancelProposal(id);
 
-        vm.warp(block.timestamp + 2 days);
+        vm.warp(block.timestamp + 1 days + 1); // inside voting window: past delay, before end
 
         vm.prank(voter2);
-        vm.expectRevert("Proposal canceled");
+        vm.expectRevert(DAOGovernance.ProposalIsCanceled.selector);
         dao.vote(id, true);
     }
 
@@ -225,34 +232,33 @@ contract DAOGovernanceTest is Test {
         bytes memory data = abi.encodeWithSignature("setValue(uint256)", 1);
 
         vm.prank(voter1);
-        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days);
+        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days, "Cancel exec test");
 
         vm.prank(voter1);
         dao.cancelProposal(id);
 
-        // move past BOTH delay + voting period
         vm.warp(block.timestamp + 3 days);
 
-        vm.expectRevert("Proposal canceled");
+        vm.expectRevert(DAOGovernance.ProposalIsCanceled.selector);
         dao.executeProposal(id);
     }
 
     function test_Revert_NonCreatorCannotCancel() public {
         uint256 id = _createSetValueProposal();
         vm.prank(voter2);
-        vm.expectRevert("Not creator");
+        vm.expectRevert(DAOGovernance.NotCreator.selector);
         dao.cancelProposal(id);
     }
 
     function test_Revert_CancelAfterVotingStarted() public {
         bytes memory data = abi.encodeWithSignature("setValue(uint256)", 42);
         vm.prank(voter1);
-        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days);
+        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days, "Delay test");
 
         vm.warp(block.timestamp + 2 days);
 
         vm.prank(voter1);
-        vm.expectRevert("Voting already started");
+        vm.expectRevert(DAOGovernance.VotingAlreadyStarted.selector);
         dao.cancelProposal(id);
     }
 
@@ -264,13 +270,15 @@ contract DAOGovernanceTest is Test {
 
     function test_Revert_InvalidQuorum() public {
         vm.prank(admin);
-        vm.expectRevert("Invalid quorum");
+        vm.expectRevert(DAOGovernance.InvalidQuorum.selector);
         dao.updateQuorum(0);
 
         vm.prank(admin);
-        vm.expectRevert("Invalid quorum");
+        vm.expectRevert(DAOGovernance.InvalidQuorum.selector);
         dao.updateQuorum(101);
     }
+
+    // ─── Treasury integration tests ───────────────────────────────────────────
 
     function test_Treasury_SetValue_ViaDAO() public {
         bytes memory data = abi.encodeWithSignature("setValue(uint256)", 99);
@@ -288,7 +296,7 @@ contract DAOGovernanceTest is Test {
 
     function test_Treasury_Revert_DirectCallNotDAO() public {
         vm.prank(voter1);
-        vm.expectRevert("Not DAO");
+        vm.expectRevert(Treasury.NotDAO.selector);
         treasury.setValue(42);
     }
 
@@ -301,7 +309,6 @@ contract DAOGovernanceTest is Test {
     }
 
     function test_Treasury_Withdraw_ViaDAO() public {
-        // Fund treasury
         vm.deal(address(treasury), 1 ether);
 
         bytes memory data = abi.encodeWithSignature(
