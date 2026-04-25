@@ -4,144 +4,216 @@ import { toast } from "react-hot-toast";
 import { useWeb3 } from "../context/Web3Context";
 
 export default function ProposalCard({ proposal, onRefresh }) {
-    const { account, daoContract, tokenContract } = useWeb3();
+  const { account, daoContract, tokenContract } = useWeb3();
 
-    const [hasVoted, setHasVoted]           = useState(false);
-    const [loading, setLoading]             = useState(false);
-    const [snapshotSupply, setSnapshotSupply] = useState(0);
-    
-    const yesVotes  = parseFloat(proposal.yesVotes);
-    const noVotes   = parseFloat(proposal.noVotes);
-    const total     = yesVotes + noVotes;
+  const [hasVoted, setHasVoted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [snapshotSupply, setSnapshotSupply] = useState(0n); // Use BigInt
+  const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
 
-    const yesPercent = total === 0 ? 0 : (yesVotes / total) * 100;
-    const noPercent  = total === 0 ? 0 : (noVotes  / total) * 100;
+  // Live Timer: This forces the component to check the time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(Math.floor(Date.now() / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-    const now       = Math.floor(Date.now() / 1000);
-    const isExpired = now > Number(proposal.endTime);
-    const isActive  = now >= Number(proposal.startTime) && now <= Number(proposal.endTime);
+  // Derived State
+  const yesVotesNum = parseFloat(ethers.formatEther(proposal.yesVotes));
+  const noVotesNum = parseFloat(ethers.formatEther(proposal.noVotes));
+  const totalVotesNum = yesVotesNum + noVotesNum;
 
-    const quorumMet = snapshotSupply > 0 && total >= (snapshotSupply * 0.30);
+  const yesPercent =
+    totalVotesNum === 0 ? 0 : (yesVotesNum / totalVotesNum) * 100;
+  const noPercent =
+    totalVotesNum === 0 ? 0 : (noVotesNum / totalVotesNum) * 100;
 
-    // fetch snapshot total supply
-    useEffect(() => {
-      if (!tokenContract || !proposal.snapshotId) return;
-      tokenContract.totalSupplyAt(proposal.snapshotId)
-        .then(s => setSnapshotSupply(parseFloat(ethers.formatEther(s))))
-        .catch(console.error);
-    }, [tokenContract, proposal.snapshotId]);
+  const isExpired = currentTime > proposal.endTime;
+  const isActive =
+    currentTime >= proposal.startTime && currentTime <= proposal.endTime;
+  const isPending = currentTime < proposal.startTime;
 
-    // check if wallet already voted
-    useEffect(() => {
-      if (!daoContract || !account) return;
-      daoContract.hasVoted(proposal.id, account)
-        .then(setHasVoted)
-        .catch(console.error);
-    }, [daoContract, account, proposal.id]);
+  // Quorum Math (BigInt safe)
+  const totalVotesBI = proposal.yesVotes + proposal.noVotes;
+  const quorumThreshold = (snapshotSupply * 35n) / 100n; // 35%
+  const quorumMet = snapshotSupply > 0n && totalVotesBI >= quorumThreshold;
 
-    const handleVote = async (type) => {
-        if (!account)  return toast.error("Connect wallet first");
-        if (hasVoted)  return toast.error("Already voted");
-        if (!isActive) return toast.error("Voting closed");
+  // Fetch snapshot supply
+  useEffect(() => {
+    if (!tokenContract || !proposal.snapshotId) return;
+    tokenContract
+      .totalSupplyAt(proposal.snapshotId)
+      .then(setSnapshotSupply)
+      .catch((err) => {
+        console.error("Snapshot fetch failed:", err);
+        // Fallback: If snapshot fails, use current supply for demo
+        tokenContract.totalSupply().then(setSnapshotSupply);
+      });
+  }, [tokenContract, proposal.snapshotId]);
 
-        setLoading(true);
-        try {
-          const tx = await daoContract.vote(proposal.id, type === "YES");
-          toast.loading("Submitting vote...", { id: "vote" });
-          await tx.wait();
-          toast.success(`Voted ${type}`, { id: "vote" });
-          setHasVoted(true);
-          onRefresh();
-        } catch (err) {
-          toast.error(err?.reason || err?.message || "Vote failed", { id: "vote" });
-        } finally {
-          setLoading(false);
-        }
-    };
+  // Check if user voted
+  useEffect(() => {
+    if (!daoContract || !account) return;
+    daoContract.hasVoted(proposal.id, account).then(setHasVoted);
+  }, [daoContract, account, proposal.id]);
 
-    const handleExecute = async () => {
-        if (!account) return toast.error("Connect wallet first");
+  const handleVote = async (isYes) => {
+    setLoading(true);
+    try {
+      const tx = await daoContract.vote(proposal.id, isYes);
+      const loadToast = toast.loading("Confirming vote...");
+      await tx.wait();
+      toast.dismiss(loadToast);
+      toast.success("Vote recorded!");
+      onRefresh();
+    } catch (err) {
+      toast.error(err?.reason || "Vote failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        setLoading(true);
-        try {
-          const tx = await daoContract.executeProposal(proposal.id);
-          toast.loading("Executing...", { id: "exec" });
-          await tx.wait();
-          toast.success("Proposal Executed Successfully", { id: "exec" });
-          onRefresh();
-        } catch (err) {
-          toast.error(err?.reason || err?.message || "Execution failed", { id: "exec" });
-        } finally {
-          setLoading(false);
-        }
-    };
+  const handleExecute = async () => {
+    setLoading(true);
+    try {
+      const tx = await daoContract.executeProposal(proposal.id);
+      const loadToast = toast.loading("Executing transaction...");
+      await tx.wait();
+      toast.dismiss(loadToast);
+      toast.success("Proposal Executed!");
+      onRefresh();
+    } catch (err) {
+      console.error(err);
+      toast.error(err?.reason || "Execution failed. Check Treasury balance.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    return (
-        <div className="bg-[#020617] border border-gray-800 rounded-2xl p-5">
+  return (
+    <div className="bg-[#0d1117] border border-gray-800 rounded-2xl p-6 shadow-xl">
+      {/* Header */}
+      <div className="flex justify-between items-start mb-4">
+        <span className="bg-cyan-950 text-cyan-400 px-3 py-1 rounded-md text-xs font-bold border border-cyan-800">
+          ID: {proposal.id}
+        </span>
+        <span
+          className={`text-xs font-bold px-2 py-1 rounded ${
+            proposal.executed
+              ? "bg-green-900/30 text-green-400"
+              : isExpired
+                ? "bg-red-900/30 text-red-400"
+                : "bg-cyan-900/30 text-cyan-400 animate-pulse"
+          }`}
+        >
+          {proposal.executed
+            ? "COMPLETED"
+            : isPending
+              ? "PENDING"
+              : isActive
+                ? "VOTING OPEN"
+                : "VOTING ENDED"}
+        </span>
+      </div>
 
-            <div className="flex justify-between mb-3">
-                <span className="bg-cyan-900 text-cyan-400 px-3 py-1 rounded-full text-sm">
-                    #{proposal.id.toString()}
-                </span>
-                <span className="text-yellow-400 text-sm">
-                    {proposal.executed ? "Executed" : isExpired ? "Ended" : "Active"}
-                </span>
-            </div>
+      {/* Target Info */}
+      <div className="mb-4">
+        <label className="text-xs text-gray-500 uppercase tracking-widest">
+          Target Contract
+        </label>
+        <p className="text-cyan-200 font-mono text-xs truncate bg-black/40 p-2 rounded mt-1 border border-gray-800">
+          {proposal.target}
+        </p>
+      </div>
 
-            <p className="text-gray-400 text-sm">Target</p>
-            <p className="text-cyan-400 mb-2 font-mono text-sm truncate">{proposal.target}</p>
-
-            <div className="flex justify-between text-sm mb-1">
-                <span className="text-green-400">YES {yesPercent.toFixed(0)}%</span>
-                <span className="text-red-400">NO {noPercent.toFixed(0)}%</span>
-            </div>
-
-            <div className="h-2 bg-red-400 rounded-full overflow-hidden mb-2">
-                <div className="h-full bg-green-500" style={{ width: `${yesPercent}%` }} />
-            </div>
-
-            <div className="flex justify-between text-xs text-gray-400">
-                <span>{yesVotes.toFixed(2)} DGT</span>
-                <span>{noVotes.toFixed(2)} DGT</span>
-            </div>
-
-            <p className={`mt-2 text-sm ${quorumMet ? "text-green-400" : "text-red-400"}`}>
-                {quorumMet ? "✔ Quorum Met" : "✖ Quorum Not Met"}
-            </p>
-
-            <p className="text-xs text-gray-500 mt-1">
-                {total.toFixed(0)} / {(snapshotSupply * 0.30).toFixed(0)} DGT needed
-            </p>
-
-            {hasVoted && (
-              <p className="text-cyan-400 text-xs mt-1">✔ You have voted</p>
-            )}
-
-            <div className="flex gap-3 mt-4">
-                <button
-                    onClick={() => handleVote("YES")}
-                    disabled={hasVoted || !isActive || loading || !account}
-                    className="flex-1 bg-green-900 text-green-400 py-2 rounded disabled:opacity-40 hover:cursor-pointer"
-                >
-                    Vote YES
-                </button>
-
-                <button
-                    onClick={() => handleVote("NO")}
-                    disabled={hasVoted || !isActive || loading || !account}
-                    className="flex-1 bg-red-900 text-red-400 py-2 rounded disabled:opacity-40 hover:cursor-pointer"
-                >
-                    Vote NO
-                </button>
-            </div>
-
-            <button
-                onClick={handleExecute}
-                disabled={!isExpired || !quorumMet || proposal.executed || proposal.canceled || yesVotes <= noVotes || loading || !account}
-                className="mt-4 w-full bg-cyan-900 text-cyan-400 py-2 rounded disabled:opacity-40 hover:cursor-pointer"
-            >
-                {proposal.executed ? "Executed" : "Execute Proposal"}
-            </button>
+      {/* Progress Bar */}
+      <div className="space-y-2 mb-4">
+        <div className="flex justify-between text-xs">
+          <span className="text-green-400 font-bold">
+            YES {yesPercent.toFixed(1)}%
+          </span>
+          <span className="text-red-400 font-bold">
+            NO {noPercent.toFixed(1)}%
+          </span>
         </div>
-    );
+        <div className="h-3 bg-gray-900 rounded-full overflow-hidden flex border border-gray-800">
+          <div
+            className="h-full bg-green-500 transition-all duration-500"
+            style={{ width: `${yesPercent}%` }}
+          />
+          <div
+            className="h-full bg-red-500 transition-all duration-500"
+            style={{ width: `${noPercent}%` }}
+          />
+        </div>
+        <div className="flex justify-between text-[10px] text-gray-500">
+          <span>{yesVotesNum.toLocaleString()} DGT</span>
+          <span>{noVotesNum.toLocaleString()} DGT</span>
+        </div>
+      </div>
+
+      {/* Quorum and Time Info */}
+      <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+        <div
+          className={`p-2 rounded border ${quorumMet ? "bg-green-950/20 border-green-800" : "bg-red-950/20 border-red-900"}`}
+        >
+          <p className="text-[10px] text-gray-500 uppercase">Quorum (35%)</p>
+          <p
+            className={`font-bold ${quorumMet ? "text-green-400" : "text-red-400"}`}
+          >
+            {quorumMet ? "Reached" : "Needed"}
+          </p>
+        </div>
+        <div className="p-2 rounded border border-gray-800 bg-gray-900/30">
+          <p className="text-[10px] text-gray-500 uppercase">Time Remaining</p>
+          <p className="font-bold text-gray-300">
+            {isExpired
+              ? "Expired"
+              : `${Math.max(0, proposal.endTime - currentTime)}s`}
+          </p>
+        </div>
+      </div>
+
+      {/* Action Buttons */}
+      {isActive && !hasVoted ? (
+        <div className="flex gap-3">
+          <button
+            onClick={() => handleVote(true)}
+            disabled={loading}
+            className="flex-1 bg-green-600 hover:bg-green-500 text-black font-bold py-2 rounded-lg transition-colors disabled:opacity-50"
+          >
+            VOTE YES
+          </button>
+          <button
+            onClick={() => handleVote(false)}
+            disabled={loading}
+            className="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2 rounded-lg transition-colors disabled:opacity-50"
+          >
+            VOTE NO
+          </button>
+        </div>
+      ) : isExpired && !proposal.executed ? (
+        <button
+          onClick={handleExecute}
+          disabled={loading || !quorumMet || yesVotesNum <= noVotesNum}
+          className="w-full bg-cyan-500 hover:bg-cyan-400 disabled:bg-gray-800 disabled:text-gray-500 text-black font-bold py-3 rounded-lg transition-all"
+        >
+          {!quorumMet
+            ? "QUORUM NOT MET"
+            : yesVotesNum <= noVotesNum
+              ? "PROPOSAL REJECTED"
+              : "EXECUTE ON-CHAIN"}
+        </button>
+      ) : proposal.executed ? (
+        <div className="w-full text-center py-3 bg-green-900/20 border border-green-900 text-green-400 rounded-lg font-bold text-sm">
+          ✓ SUCCESSFULLY EXECUTED
+        </div>
+      ) : hasVoted ? (
+        <div className="w-full text-center py-3 bg-cyan-900/20 border border-cyan-900 text-cyan-400 rounded-lg font-bold text-sm">
+          WAITING FOR VOTING TO END...
+        </div>
+      ) : null}
+    </div>
+  );
 }

@@ -10,7 +10,7 @@ export default function Dashboard() {
   const { account, daoContract } = useWeb3();
   const navigate = useNavigate();
   const [proposals, setProposals] = useState([]);
-  const [loading, setLoading]     = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const fetchProposals = useCallback(async () => {
     if (!daoContract) return;
@@ -23,16 +23,16 @@ export default function Dashboard() {
       for (let i = 1; i <= total; i++) {
         const p = await daoContract.proposals(i);
         fetched.push({
-          id:         Number(p.id),
-          creator:    p.creator,
-          target:     p.target,
-          snapshotId: Number(p.snapshotId),
-          startTime:  Number(p.startTime),
-          endTime:    Number(p.endTime),
-          yesVotes:   ethers.formatEther(p.yesVotes),
-          noVotes:    ethers.formatEther(p.noVotes),
-          executed:   p.executed,
-          canceled:   p.canceled,
+          id: Number(p.id),
+          creator: p.creator,
+          target: p.target,
+          snapshotId: p.snapshotId.toString(), // Keep as string for BigInt safety
+          startTime: Number(p.startTime),
+          endTime: Number(p.endTime),
+          yesVotes: p.yesVotes, // Keep as BigInt
+          noVotes: p.noVotes, // Keep as BigInt
+          executed: p.executed,
+          canceled: p.canceled,
         });
       }
 
@@ -51,7 +51,6 @@ export default function Dashboard() {
 
   return (
     <div className="px-8 py-6">
-
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold text-cyan-400">
@@ -66,13 +65,13 @@ export default function Dashboard() {
           <div className="flex gap-3">
             <button
               onClick={fetchProposals}
-              className="border border-cyan-700 text-cyan-400 px-4 py-2 rounded-lg hover:cursor-pointer"
+              className="border border-cyan-700 text-cyan-400 px-4 py-2 rounded-lg hover:cursor-pointer hover:bg-cyan-900/30 transition-all"
             >
               ↻ Refresh
             </button>
             <button
               onClick={() => navigate("/create")}
-              className="bg-cyan-500 text-black px-4 py-2 rounded-lg hover:cursor-pointer"
+              className="bg-cyan-500 text-black px-4 py-2 rounded-lg hover:cursor-pointer font-bold"
             >
               + Create Proposal
             </button>
@@ -81,29 +80,30 @@ export default function Dashboard() {
       </div>
 
       <div className="flex gap-6 mt-6">
-
         <div className="flex-1 space-y-4">
           <h2 className="text-xl">Proposals</h2>
-
           {!account ? (
             <div className="bg-[#020617] border border-gray-800 rounded-2xl p-6 text-center text-gray-400">
               Connect your wallet to view proposals
             </div>
           ) : loading ? (
-            <div className="bg-[#020617] border border-gray-800 rounded-2xl p-6 text-center text-gray-400">
-              Loading proposals from chain...
+            <div className="bg-[#020617] border border-gray-800 rounded-2xl p-6 text-center text-gray-400 animate-pulse">
+              Syncing with blockchain...
             </div>
           ) : proposals.length === 0 ? (
             <div className="bg-[#020617] border border-gray-800 rounded-2xl p-6 text-center text-gray-400">
-              No proposals yet. Create the first one!
+              No proposals yet.
             </div>
           ) : (
             proposals.map((p) => (
-              <ProposalCard key={p.id} proposal={p} onRefresh={fetchProposals} />
+              <ProposalCard
+                key={p.id}
+                proposal={p}
+                onRefresh={fetchProposals}
+              />
             ))
           )}
         </div>
-
         <UserPanel />
       </div>
     </div>

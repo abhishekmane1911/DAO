@@ -37,7 +37,10 @@ contract DAOGovernanceTest is Test {
         vm.stopPrank();
     }
 
-    function _createProposal(address target, bytes memory data) internal returns (uint256) {
+    function _createProposal(
+        address target,
+        bytes memory data
+    ) internal returns (uint256) {
         vm.prank(voter1);
         return dao.createProposal(target, data, 0, 1 days);
     }
@@ -48,21 +51,20 @@ contract DAOGovernanceTest is Test {
     }
 
     function _passAndExecute(uint256 proposalId) internal {
-        vm.prank(voter1); dao.vote(proposalId, true);
-        vm.prank(voter2); dao.vote(proposalId, true);
-        vm.prank(voter3); dao.vote(proposalId, true);
+        vm.prank(voter1);
+        dao.vote(proposalId, true);
+        vm.prank(voter2);
+        dao.vote(proposalId, true);
+        vm.prank(voter3);
+        dao.vote(proposalId, true);
         vm.warp(block.timestamp + 2 days);
         dao.executeProposal(proposalId);
     }
 
     function test_CreateProposal_StoresCorrectly() public {
         uint256 id = _createSetValueProposal();
-        (
-            uint256 pid,
-            address creator,
-            address target,
-            ,,,,,,,
-        ) = dao.proposals(id);
+        (uint256 pid, address creator, address target, , , , , , , , ) = dao
+            .proposals(id);
 
         assertEq(pid, 1);
         assertEq(creator, voter1);
@@ -74,7 +76,7 @@ contract DAOGovernanceTest is Test {
         vm.prank(voter1);
         dao.vote(id, true);
 
-        (,,,,,,,uint256 yes,,, ) = dao.proposals(id);
+        (, , , , , , , uint256 yes, , , ) = dao.proposals(id);
         assertEq(yes, 100e18);
     }
 
@@ -83,7 +85,7 @@ contract DAOGovernanceTest is Test {
         vm.prank(voter1);
         dao.vote(id, false);
 
-        (,,,,,,,,uint256 no,, ) = dao.proposals(id);
+        (, , , , , , , , uint256 no, , ) = dao.proposals(id);
         assertEq(no, 100e18);
     }
 
@@ -94,7 +96,7 @@ contract DAOGovernanceTest is Test {
         assertEq(mockTreasury.value(), 42);
         assertEq(mockTreasury.lastCaller(), address(dao));
 
-        (,,,,,,,,,bool executed, ) = dao.proposals(id);
+        (, , , , , , , , , bool executed, ) = dao.proposals(id);
         assertTrue(executed);
     }
 
@@ -102,19 +104,29 @@ contract DAOGovernanceTest is Test {
         bytes memory data = abi.encodeWithSignature("setValue(uint256)", 42);
 
         vm.prank(voter1);
-        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days);
+        uint256 id = dao.createProposal(
+            address(mockTreasury),
+            data,
+            1 days,
+            1 days
+        );
 
         vm.prank(voter1);
         dao.cancelProposal(id);
 
-        (,,,,,,,,,, bool canceled) = dao.proposals(id);
+        (, , , , , , , , , , bool canceled) = dao.proposals(id);
         assertTrue(canceled);
     }
 
-    function test_QuorumExactly30Percent_Executes() public {
+    // Change the name and the logic
+    function test_QuorumMetAt35Percent_Executes() public {
         uint256 id = _createSetValueProposal();
+
         vm.prank(voter1);
-        dao.vote(id, true);
+        dao.vote(id, true); // 100 votes (Still below 105)
+
+        vm.prank(voter2);
+        dao.vote(id, true); // 200 votes total (Now above 105)
 
         vm.warp(block.timestamp + 2 days);
         dao.executeProposal(id);
@@ -124,9 +136,12 @@ contract DAOGovernanceTest is Test {
 
     function test_AnyoneCanExecute_AfterDeadline() public {
         uint256 id = _createSetValueProposal();
-        vm.prank(voter1); dao.vote(id, true);
-        vm.prank(voter2); dao.vote(id, true);
-        vm.prank(voter3); dao.vote(id, true);
+        vm.prank(voter1);
+        dao.vote(id, true);
+        vm.prank(voter2);
+        dao.vote(id, true);
+        vm.prank(voter3);
+        dao.vote(id, true);
 
         vm.warp(block.timestamp + 2 days);
 
@@ -169,9 +184,12 @@ contract DAOGovernanceTest is Test {
 
     function test_Revert_ExecuteBeforeDeadline() public {
         uint256 id = _createSetValueProposal();
-        vm.prank(voter1); dao.vote(id, true);
-        vm.prank(voter2); dao.vote(id, true);
-        vm.prank(voter3); dao.vote(id, true);
+        vm.prank(voter1);
+        dao.vote(id, true);
+        vm.prank(voter2);
+        dao.vote(id, true);
+        vm.prank(voter3);
+        dao.vote(id, true);
 
         vm.expectRevert("Voting not ended");
         dao.executeProposal(id);
@@ -179,9 +197,12 @@ contract DAOGovernanceTest is Test {
 
     function test_Revert_DefeatedProposal_CannotExecute() public {
         uint256 id = _createSetValueProposal();
-        vm.prank(voter1); dao.vote(id, false);
-        vm.prank(voter2); dao.vote(id, false);
-        vm.prank(voter3); dao.vote(id, false);
+        vm.prank(voter1);
+        dao.vote(id, false);
+        vm.prank(voter2);
+        dao.vote(id, false);
+        vm.prank(voter3);
+        dao.vote(id, false);
 
         vm.warp(block.timestamp + 2 days);
         vm.expectRevert("Majority not reached");
@@ -209,7 +230,12 @@ contract DAOGovernanceTest is Test {
         bytes memory data = abi.encodeWithSignature("setValue(uint256)", 1);
 
         vm.prank(voter1);
-        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days);
+        uint256 id = dao.createProposal(
+            address(mockTreasury),
+            data,
+            1 days,
+            1 days
+        );
 
         vm.prank(voter1);
         dao.cancelProposal(id);
@@ -225,7 +251,12 @@ contract DAOGovernanceTest is Test {
         bytes memory data = abi.encodeWithSignature("setValue(uint256)", 1);
 
         vm.prank(voter1);
-        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days);
+        uint256 id = dao.createProposal(
+            address(mockTreasury),
+            data,
+            1 days,
+            1 days
+        );
 
         vm.prank(voter1);
         dao.cancelProposal(id);
@@ -247,7 +278,12 @@ contract DAOGovernanceTest is Test {
     function test_Revert_CancelAfterVotingStarted() public {
         bytes memory data = abi.encodeWithSignature("setValue(uint256)", 42);
         vm.prank(voter1);
-        uint256 id = dao.createProposal(address(mockTreasury), data, 1 days, 1 days);
+        uint256 id = dao.createProposal(
+            address(mockTreasury),
+            data,
+            1 days,
+            1 days
+        );
 
         vm.warp(block.timestamp + 2 days);
 
@@ -276,9 +312,12 @@ contract DAOGovernanceTest is Test {
         bytes memory data = abi.encodeWithSignature("setValue(uint256)", 99);
         uint256 id = _createProposal(address(treasury), data);
 
-        vm.prank(voter1); dao.vote(id, true);
-        vm.prank(voter2); dao.vote(id, true);
-        vm.prank(voter3); dao.vote(id, true);
+        vm.prank(voter1);
+        dao.vote(id, true);
+        vm.prank(voter2);
+        dao.vote(id, true);
+        vm.prank(voter3);
+        dao.vote(id, true);
 
         vm.warp(block.timestamp + 2 days);
         dao.executeProposal(id);
@@ -295,7 +334,7 @@ contract DAOGovernanceTest is Test {
     function test_Treasury_ReceivesETH() public {
         vm.deal(voter1, 1 ether);
         vm.prank(voter1);
-        (bool ok,) = address(treasury).call{value: 1 ether}("");
+        (bool ok, ) = address(treasury).call{value: 1 ether}("");
         assertTrue(ok);
         assertEq(treasury.getBalance(), 1 ether);
     }
@@ -311,9 +350,12 @@ contract DAOGovernanceTest is Test {
         );
         uint256 id = _createProposal(address(treasury), data);
 
-        vm.prank(voter1); dao.vote(id, true);
-        vm.prank(voter2); dao.vote(id, true);
-        vm.prank(voter3); dao.vote(id, true);
+        vm.prank(voter1);
+        dao.vote(id, true);
+        vm.prank(voter2);
+        dao.vote(id, true);
+        vm.prank(voter3);
+        dao.vote(id, true);
 
         vm.warp(block.timestamp + 2 days);
         dao.executeProposal(id);

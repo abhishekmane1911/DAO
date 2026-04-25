@@ -9,7 +9,7 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
 
     MintableToken public token;
-    uint256 public quorumPercentage = 30;
+    uint256 public quorumPercentage = 35; // making it 35
 
     struct Proposal {
         uint256 id;
@@ -51,7 +51,7 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
     constructor(address _tokenAddress) {
         require(_tokenAddress != address(0), "Invalid token address");
 
-        token = MintableToken(_tokenAddress);
+        token = MintableToken(_tokenAddress); // not a call but type casting
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(ADMIN_ROLE, msg.sender);

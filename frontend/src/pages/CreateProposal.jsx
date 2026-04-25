@@ -183,7 +183,7 @@ export default function CreateProposal() {
                         <p><span className="text-gray-500">Target:</span> <span className="font-mono text-cyan-400">{target || "—"}</span></p>
                         <p><span className="text-gray-500">Voting starts:</span> {votingDelay === 0 || votingDelay === "0" ? "immediately" : `after ${votingDelay}s`}</p>
                         <p><span className="text-gray-500">Voting ends:</span> {votingPeriod}s after start</p>
-                        <p><span className="text-gray-500">Quorum required:</span> 30% of snapshot supply</p>
+                        <p><span className="text-gray-500">Quorum required:</span> 35% of snapshot supply</p>
                     </div>
 
                     {/* Submit */}

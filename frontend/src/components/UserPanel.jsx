@@ -16,7 +16,6 @@ export default function UserPanel() {
 
   return (
     <div className="w-80 bg-[#020617] border border-gray-800 rounded-2xl p-6">
-
       <div className="text-center mb-4">
         <div className="w-12 h-12 bg-cyan-500 rounded-full mx-auto mb-2"></div>
         <h2 className="text-lg font-semibold">
