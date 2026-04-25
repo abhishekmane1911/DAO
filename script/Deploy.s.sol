@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import {Script, console} from "../lib/forge-std/src/Script.sol";
+import {Script, console} from "forge-std/Script.sol";
 import {MintableToken} from "../src/MintableToken.sol";
 import {DAOGovernance} from "../src/DAOGovernance.sol";
 import {Treasury} from "../src/Treasury.sol";

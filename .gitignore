@@ -9,6 +9,7 @@ out/
 
 # Docs
 docs/
+CS218_Project_Marks_ppt.docx.pdf
 
 # Dotenv file
 .env
@@ -18,3 +19,6 @@ lib
 
 # Node (frontend)
 node_modules/
+
+.DS_Store
+

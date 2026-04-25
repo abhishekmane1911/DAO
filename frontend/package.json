@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.2.2",
+    "boring-avatars": "^2.0.4",
+    "canvas-confetti": "^1.9.4",
     "ethers": "^6.16.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
