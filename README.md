@@ -228,34 +228,6 @@ Once enough votes are collected and quorum is reached:
 
 ---
 
-# Useful Commands
-
-## Install Dependencies
-
-```bash
-npm install
-```
-
-## Start Dev Server
-
-```bash
-npm run dev
-```
-
-## Build Frontend
-
-```bash
-npm run build
-```
-
-## Preview Production Build
-
-```bash
-npm run preview
-```
-
----
-
 # Wallet Requirements
 
 - MetaMask extension installed
