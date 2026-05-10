@@ -35,52 +35,263 @@ A fully decentralised on-chain governance system where **DGT (DAO Governance Tok
 
 ---
 
-## Prerequisites
+# DAO Governance DApp
+
+A decentralized governance platform built on Ethereum Sepolia where users can create proposals, vote using DAO tokens, and execute proposals once the quorum is reached.
+
+---
+
+# Tech Stack
+
+- Solidity
+- Foundry
+- React + Vite
+- Ethers.js
+- MetaMask
+- Pinata (IPFS)
+
+---
+
+# Prerequisites
+
+Before running the project, make sure you have the following installed:
+
+## Install Foundry (Smart Contracts)
 
 ```bash
-# Foundry (smart contracts)
 curl -L https://foundry.paradigm.xyz | bash
 foundryup
+```
 
-# Node.js (frontend) — requires Node 18+
+Verify installation:
+
+```bash
+forge --version
+```
+
+---
+
+## Install Node.js
+
+Frontend requires **Node.js v18+**
+
+Check your version:
+
+```bash
 node --version
 ```
 
 ---
 
-## Setup & Installation
+# Project Setup
 
-### Smart Contracts
+## Clone the Repository
 
 ```bash
-# 1. Clone and install dependencies
-git clone https://github.com/abhishekmane1911/DAO
-cd DAO
-
-# 2. Install OpenZeppelin and other Forge libraries
-forge install
-
-# 3. Compile all contracts
-forge build
+git clone <YOUR_REPOSITORY_URL>
+cd <PROJECT_NAME>
 ```
 
-### Frontend
+---
+
+# Smart Contracts
+
+> Smart contracts are already deployed on the Sepolia testnet.  
+> No backend or contract deployment changes are required.
+
+---
+
+# Frontend Setup
+
+## 1. Navigate to Frontend Directory
 
 ```bash
-# 1. Navigate to frontend directory
 cd frontend
-
-# 2. Install npm dependencies
-npm install
-
-# 3. Create your .env file
-cp .env.example .env
-# Then fill in your Pinata JWT and gateway URL in .env
-
-# 4. Start the local dev server
-npm run dev
-# Opens at http://localhost:5173
 ```
+
+---
+
+## 2. Install Dependencies
+
+```bash
+npm install
+```
+
+---
+
+## 3. Create Environment File
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Now update the `.env` file with your Pinata credentials:
+
+```env
+VITE_PINATA_JWT=your_pinata_jwt
+VITE_PINATA_GATEWAY=https://your-gateway.mypinata.cloud
+```
+
+---
+
+## 4. Start Development Server
+
+```bash
+npm run dev
+```
+
+Frontend will start on:
+
+```txt
+http://localhost:5173
+```
+
+---
+
+# MetaMask Setup
+
+## Connect to Sepolia Testnet
+
+Open MetaMask and switch your network to:
+
+```txt
+Sepolia Test Network
+```
+
+---
+
+# Important Testing Requirement
+
+To fully test proposal execution and voting flow:
+
+- Create **7 dummy MetaMask accounts**
+- Fund each account with at least:
+
+```txt
+0.005 Sepolia ETH
+```
+
+You can use a Sepolia faucet to get test ETH.
+
+---
+
+# Buy DAO Tokens
+
+Each account must:
+
+1. Connect wallet
+2. Buy DAO tokens from the DApp
+3. Use tokens for governance voting
+
+---
+
+# Governance Flow
+
+## 1. Create Proposal
+
+Any eligible wallet can create a governance proposal.
+
+Example proposals:
+
+- Treasury spending
+- Parameter updates
+- DAO decisions
+
+---
+
+## 2. Vote on Proposal
+
+Use your DAO tokens to vote:
+
+- YES
+- NO
+
+Voting power depends on token holdings.
+After each vote wait for till transaction completes (on sepolia) then move forward, we suggest to set time for voting at least 10 min
+---
+
+## 3. Execute Proposal
+
+Once enough votes are collected and quorum is reached:
+
+- Proposal becomes executable
+- Execute proposal directly from the frontend
+
+---
+
+# Development Notes
+
+- Frontend changes only
+- Do not modify backend/contracts
+- Contracts are already deployed on Sepolia
+
+---
+
+# Useful Commands
+
+## Install Dependencies
+
+```bash
+npm install
+```
+
+## Start Dev Server
+
+```bash
+npm run dev
+```
+
+## Build Frontend
+
+```bash
+npm run build
+```
+
+## Preview Production Build
+
+```bash
+npm run preview
+```
+
+---
+
+# Wallet Requirements
+
+- MetaMask extension installed
+- Sepolia ETH for gas fees
+- DAO tokens for voting
+
+---
+
+# Common Issues
+
+## MetaMask Not Connecting
+
+- Refresh browser
+- Reconnect wallet
+- Ensure MetaMask is unlocked
+
+---
+
+## Wrong Network
+
+Switch to:
+
+```txt
+Sepolia Testnet
+```
+
+---
+
+## Transaction Failing
+
+Make sure the wallet has:
+
+- Enough Sepolia ETH
+- DAO tokens
+- Correct network selected
 
 ---
 
