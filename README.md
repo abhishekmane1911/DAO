@@ -64,7 +64,7 @@ forge install
 forge build
 ```
 ### Live Demo
-You can test the deployed DApp here: [DAO Governance Live Demo](https://abhishekmane1911.github.io/DAO/dashboard)
+You can test the deployed DApp here: [DAO Governance Live Demo](https://abhishekmane1911.github.io/DAO)
 
 *(If the live demo is unavailable or you experience testnet RPC limits, please follow the local deployment instructions below.)*
 
