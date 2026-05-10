@@ -20,7 +20,7 @@ contract DAOGovernance is AccessControl, ReentrancyGuard {
     MintableToken public token;
 
     /// @notice Percentage of total supply required to reach quorum (0-100)
-    uint256 public quorumPercentage = 35;
+    uint256 public quorumPercentage = 30;
 
     /**
      * @dev Proposal structure containing all relevant details for a governance proposal.

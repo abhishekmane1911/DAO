@@ -10,19 +10,19 @@ pragma solidity ^0.8.20;
 contract Treasury {
     /// @notice The address of the governing DAO contract
     address public dao;
-    
+
     /// @notice A simple stored value that can be changed by the DAO
     uint256 public value;
 
     /// @notice Emitted when the stored value is changed
     event ValueChanged(uint256 oldValue, uint256 newValue);
-    
+
     /// @notice Emitted when ETH is received by the treasury
     event EthReceived(address sender, uint256 amount);
-    
+
     /// @notice Emitted when the DAO address is updated
     event DAOUpdated(address oldDao, address newDao);
-    
+
     /// @notice Emitted when ETH is withdrawn from the treasury
     event EthWithdrawn(address to, uint256 amount);
 
@@ -86,13 +86,26 @@ contract Treasury {
      * @dev Only callable by the DAO contract via a successful proposal.
      */
     function withdraw(address payable to, uint256 amount) external onlyDao {
-        if (to == address(0))                revert InvalidAddress();
-        if (address(this).balance < amount)  revert InsufficientBalance();
+        if (to == address(0)) revert InvalidAddress();
+        if (address(this).balance < amount) revert InsufficientBalance();
 
         (bool success, ) = to.call{value: amount}("");
         if (!success) revert TransferFailed();
 
         emit EthWithdrawn(to, amount);
+    }
+
+    // this one is for token above for eth
+    function withdrawERC20(
+        address token,
+        address to,
+        uint256 amount
+    ) external onlyDao {
+        // This allows the DAO to send DGT (or any ERC20) out of the Treasury
+        (bool success, ) = token.call(
+            abi.encodeWithSignature("transfer(address,uint256)", to, amount)
+        );
+        if (!success) revert TransferFailed();
     }
 
     /**
