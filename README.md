@@ -88,8 +88,7 @@ node --version
 ## Clone the Repository
 
 ```bash
-git clone <YOUR_REPOSITORY_URL>
-cd <PROJECT_NAME>
+git clone <REPO LINK> .
 ```
 
 ---
