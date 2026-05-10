@@ -8,53 +8,47 @@ import {Treasury} from "../src/Treasury.sol";
 
 contract Deploy is Script {
     function run() external returns (MintableToken, DAOGovernance, Treasury) {
-        // We use the Private Key 0 for deployment
-        vm.startBroadcast();
+        // Load your real MetaMask Private Key from the .env file
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+
+        vm.startBroadcast(deployerPrivateKey);
+
+        console.log("Deploying contracts...");
 
         // 1. Deploy the core contracts
         MintableToken token = new MintableToken();
         DAOGovernance governance = new DAOGovernance(address(token));
         Treasury treasury = new Treasury(address(governance));
 
-        // 2. Link the Snapshot Role so Governance can see historical balances
+        // 2. Link Token & Treasury for the 0.05 ETH "Join DAO" feature
+        token.setTreasury(payable(address(treasury)));
+
+        token.mint(address(treasury), 950_000 ether);
+
+        // 3. Grant Roles
+        // Allow the Governance contract to take voting snapshots
         token.grantRole(token.SNAPSHOT_ROLE(), address(governance));
-        console.log("System deployed at:", address(governance));
 
-        // --- GENESIS DISTRIBUTION ---
-        // Total Supply Target: 1,000,000 DGT
+        // Grant the DAO the ability to govern itself (Change quorum/threshold)
+        governance.grantRole(governance.ADMIN_ROLE(), address(governance));
 
-        // 1. Treasury (The DAO Vault) gets 20%
-        token.mint(address(treasury), 200_000 ether);
-
-        // 2. The Admin + 9 Anvil accounts (10 users total) get equal shares of the remaining 80%
-        // Math: 800,000 / 10 = 80,000 DGT each
-        uint256 amountPerUser = 80_000 ether;
-
-        // Admin (Anvil Account 0) gets their equal share
-        address admin = address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266);
-        token.mint(admin, amountPerUser);
-
-        // The 9 other Anvil accounts get their equal share
-        address[] memory publicUsers = new address[](9);
-        publicUsers[0] = address(0x70997970C51812dc3A010C7d01b50e0d17dc79C8); // (1)
-        publicUsers[1] = address(0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC); // (2)
-        publicUsers[2] = address(0x90F79bf6EB2c4f870365E785982E1f101E93b906); // (3)
-        publicUsers[3] = address(0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65); // (4)
-        publicUsers[4] = address(0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc); // (5)
-        publicUsers[5] = address(0x976EA74026E726554dB657fA54763abd0C3a0aa9); // (6)
-        publicUsers[6] = address(0x14dC79964da2C08b23698B3D3cc7Ca32193d9955); // (7)
-        publicUsers[7] = address(0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f); // (8)
-        publicUsers[8] = address(0xa0Ee7A142d267C1f36714E4a8F75612F20a79720); // (9)
-
-        for (uint256 i = 0; i < publicUsers.length; i++) {
-            token.mint(publicUsers[i], amountPerUser);
-        }
-
-        console.log(
-            "Genesis seeding complete. 10 equal accounts now have voting power."
-        );
+        /*
+         * NOTE: You (msg.sender) currently still have the ADMIN_ROLE too.
+         * For your school project demo, it is safer to keep it so you don't
+         * lock yourself out. If this were a real mainnet launch, you would
+         * remove your own power right now by uncommenting the line below:
+         *
+         * governance.renounceRole(governance.ADMIN_ROLE(), msg.sender);
+         */
 
         vm.stopBroadcast();
+
+        // 4. Output addresses so you can easily copy them into your React config.js!
+        console.log("=== DEPLOYMENT SUCCESSFUL ===");
+        console.log("MintableToken:", address(token));
+        console.log("DAOGovernance:", address(governance));
+        console.log("Treasury:     ", address(treasury));
+
         return (token, governance, treasury);
     }
 }

@@ -225,7 +225,7 @@ function SummaryRow({ label, value, mono = false }) {
 export default function CreateProposal() {
   useSharedFonts();
 
-  const { account, daoContract } = useWeb3();
+  const { account, daoContract, tokenBalance } = useWeb3();
   const navigate = useNavigate();
 
   // Action Builder State
@@ -291,7 +291,10 @@ export default function CreateProposal() {
     if (!daoContract) return toast.error("Contract not loaded");
     if (Number(votingPeriod) <= 0)
       return toast.error("Voting period must be > 0");
-
+    if (parseFloat(tokenBalance) < 10) {
+      return toast.error("You need at least 10 DGT to create a proposal.");
+    }
+    
     setLoading(true);
     try {
       // ── Determine Target & Calldata based on selected Action ──

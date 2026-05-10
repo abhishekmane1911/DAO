@@ -26,6 +26,11 @@ contract Treasury {
     /// @notice Emitted when ETH is withdrawn from the treasury
     event EthWithdrawn(address to, uint256 amount);
 
+    event ERC20Withdrawn(
+        address indexed token,
+        address indexed to,
+        uint256 amount
+    );
     /**
      * @dev Custom errors for gas efficiency.
      */
@@ -101,11 +106,15 @@ contract Treasury {
         address to,
         uint256 amount
     ) external onlyDao {
-        // This allows the DAO to send DGT (or any ERC20) out of the Treasury
-        (bool success, ) = token.call(
+        (bool success, bytes memory data) = token.call(
             abi.encodeWithSignature("transfer(address,uint256)", to, amount)
         );
-        if (!success) revert TransferFailed();
+
+        // Ensures tokens that return 'false' instead of reverting are caught
+        bool result = success && (data.length == 0 || abi.decode(data, (bool)));
+        if (!result) revert TransferFailed();
+
+        emit ERC20Withdrawn(token, to, amount); // Frontend can now see this!
     }
 
     /**

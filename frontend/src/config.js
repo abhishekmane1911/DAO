@@ -1,11 +1,15 @@
+// Replace the old Anvil addresses with your new Sepolia addresses from the terminal!
 export const CONTRACTS = {
-  MintableToken: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
-  DAOGovernance: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
-  Treasury: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
+ MintableToken : '0xBC7fc8E6c167848BB500ff122a2Dc8dE8eA0bAA6',
+ DAOGovernance : '0xaee5042Df32469fb36F978987461E12d05AC8Af3',
+ Treasury :  '0xCb483489eCf38A60394D8CF89830085720B6CA77'
 };
 
+// Switch from Anvil to Sepolia
 export const NETWORK = {
-  chainId: 31337,
-  name: "Anvil",
-  rpcUrl: "http://127.0.0.1:8545",
+  chainId: 11155111, // The official Chain ID for Sepolia
+  name: "Sepolia",
+  rpcUrl: "https://rpc.sepolia.org", // Standard public RPC for frontend wallets
+  currency: "ETH",
+  blockExplorer: "https://sepolia.etherscan.io",
 };
