@@ -90,7 +90,7 @@ export default function ProposalDetail() {
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
   const [snapshotSupply, setSnapshotSupply] = useState(0);
-  const [quorumPct, setQuorumPct] = useState(35); // default 35%
+  const [quorumPct, setQuorumPct] = useState(30); // default 30%
   const [hasVoted, setHasVoted] = useState(false);
   const [txLoading, setTxLoading] = useState(false);
 
@@ -352,7 +352,7 @@ export default function ProposalDetail() {
           <StatRow label="Voting Starts" value={fmt(proposal.startTime)} />
           <StatRow label="Voting Ends" value={fmt(proposal.endTime)} />
           <StatRow label="Snapshot ID" value={`#${proposal.snapshotId}`} mono />
-          <StatRow label="Quorum Required" value="35% of snapshot supply"
+          <StatRow label="Quorum Required" value="30% of snapshot supply"
             valueStyle={{ color: "#f59e0b", background: "rgba(245,158,11,0.08)", padding: "2px 10px", borderRadius: "100px", fontSize: "11px", fontFamily: "'Space Mono',monospace" }} />
           {proposal.executed && <StatRow label="Status" value="✓ Executed" valueStyle={{ color: "#34d399" }} />}
           {proposal.canceled && <StatRow label="Status" value="✕ Canceled" valueStyle={{ color: "#f87171" }} />}

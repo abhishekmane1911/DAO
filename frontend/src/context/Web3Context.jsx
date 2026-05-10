@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 import { ethers } from "ethers";
 import { toast } from "react-hot-toast";
 import DAOGovernanceArtifact from "../../abi/DAOGovernance.json";
@@ -12,11 +19,11 @@ const MintableTokenABI = MintableTokenArtifact.abi;
 const STORAGE_KEY = "dao_wallet_connected";
 
 export function Web3Provider({ children }) {
-  const [account, setAccount]             = useState(null);
-  const [tokenBalance, setTokenBalance]   = useState("0");
-  const [daoContract, setDaoContract]     = useState(null);
+  const [account, setAccount] = useState(null);
+  const [tokenBalance, setTokenBalance] = useState("0");
+  const [daoContract, setDaoContract] = useState(null);
   const [tokenContract, setTokenContract] = useState(null);
-  const [connecting, setConnecting]       = useState(false);
+  const [connecting, setConnecting] = useState(false);
 
   // track listeners so we can clean them up
   const listenersAttached = useRef(false);
@@ -31,8 +38,11 @@ export function Web3Provider({ children }) {
     setConnecting(true);
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-
+      // This forces MetaMask to show the account selection popup
+      await window.ethereum.request({
+        method: "wallet_requestPermissions",
+        params: [{ eth_accounts: {} }],
+      });
       // check & auto-switch network
       const network = await provider.getNetwork();
       const targetHex = "0x" + NETWORK.chainId.toString(16);
@@ -47,27 +57,36 @@ export function Web3Provider({ children }) {
           if (switchErr.code === 4902) {
             await window.ethereum.request({
               method: "wallet_addEthereumChain",
-              params: [{
-                chainId: targetHex,
-                chainName: NETWORK.name,
-                rpcUrls: [NETWORK.rpcUrl],
-                nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-              }],
+              params: [
+                {
+                  chainId: targetHex,
+                  chainName: NETWORK.name,
+                  rpcUrls: [NETWORK.rpcUrl],
+                  nativeCurrency: {
+                    name: "Ether",
+                    symbol: "ETH",
+                    decimals: 18,
+                  },
+                },
+              ],
             });
           } else {
-            if (!silent) toast.error(`Please switch to ${NETWORK.name} (chain ${NETWORK.chainId})`);
+            if (!silent)
+              toast.error(
+                `Please switch to ${NETWORK.name} (chain ${NETWORK.chainId})`,
+              );
             return;
           }
         }
         // after switch, re-create provider
         const newProvider = new ethers.BrowserProvider(window.ethereum);
-        const signer  = await newProvider.getSigner();
+        const signer = await newProvider.getSigner();
         const address = await signer.getAddress();
         setupContracts(signer, address, silent);
         return;
       }
 
-      const signer  = await provider.getSigner();
+      const signer = await provider.getSigner();
       const address = await signer.getAddress();
       setupContracts(signer, address, silent);
     } catch (err) {
@@ -80,12 +99,23 @@ export function Web3Provider({ children }) {
 
   /** Create contract instances, read balance, store state */
   const setupContracts = useCallback((signer, address, silent) => {
-    const token = new ethers.Contract(CONTRACTS.MintableToken, MintableTokenABI, signer);
-    const dao   = new ethers.Contract(CONTRACTS.DAOGovernance,  DAOGovernanceABI,  signer);
+    const token = new ethers.Contract(
+      CONTRACTS.MintableToken,
+      MintableTokenABI,
+      signer,
+    );
+    const dao = new ethers.Contract(
+      CONTRACTS.DAOGovernance,
+      DAOGovernanceABI,
+      signer,
+    );
 
-    token.balanceOf(address).then(bal => {
-      setTokenBalance(ethers.formatEther(bal));
-    }).catch(console.error);
+    token
+      .balanceOf(address)
+      .then((bal) => {
+        setTokenBalance(ethers.formatEther(bal));
+      })
+      .catch(console.error);
 
     setAccount(address);
     setTokenContract(token);
@@ -96,7 +126,10 @@ export function Web3Provider({ children }) {
   }, []);
 
   /** Public connect handler */
-  const connectWallet = useCallback(() => performConnect(false), [performConnect]);
+  const connectWallet = useCallback(
+    () => performConnect(false),
+    [performConnect],
+  );
 
   /** Disconnect — clear state + localStorage */
   const disconnectWallet = useCallback(() => {
@@ -154,16 +187,18 @@ export function Web3Provider({ children }) {
   }, [performConnect, disconnectWallet]);
 
   return (
-    <Web3Context.Provider value={{
-      account,
-      tokenBalance,
-      daoContract,
-      tokenContract,
-      connecting,
-      connectWallet,
-      disconnectWallet,
-      refreshBalance,
-    }}>
+    <Web3Context.Provider
+      value={{
+        account,
+        tokenBalance,
+        daoContract,
+        tokenContract,
+        connecting,
+        connectWallet,
+        disconnectWallet,
+        refreshBalance,
+      }}
+    >
       {children}
     </Web3Context.Provider>
   );

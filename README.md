@@ -27,7 +27,7 @@ A fully decentralised on-chain governance system where **DGT (DAO Governance Tok
 
 ### Key Features
 - **Snapshot-based voting** — voter power is locked at proposal creation, preventing flash-loan attacks
-- **Quorum enforcement** — 35% of snapshot supply must participate for a valid result
+- **Quorum enforcement** — 30% of snapshot supply must participate for a valid result
 - **Struct packing** — `bool executed` and `bool canceled` packed with `address creator` in one 32-byte storage slot
 - **IPFS metadata** — title, description, and cover image stored off-chain; CID stored on-chain
 - **ReentrancyGuard** on `executeProposal` to prevent reentrancy during external calls

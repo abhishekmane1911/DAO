@@ -75,7 +75,7 @@ export default function Navbar() {
               {account ? (
                 <div className="hidden sm:flex items-center gap-2">
                   {/* Token balance badge */}
-                  <span
+                  {/* <span
                     className="px-3 py-1.5 rounded-lg text-xs font-medium"
                     style={{
                       background: "rgba(245, 158, 11, 0.15)",
@@ -87,10 +87,10 @@ export default function Navbar() {
                       maximumFractionDigits: 2,
                     })}{" "}
                     DGT
-                  </span>
+                  </span> */}
 
                   {/* Address badge */}
-                  <button
+                  {/* <button
                     onClick={() => {
                       navigator.clipboard.writeText(account);
                       // tiny visual feedback — handled by CSS
@@ -108,7 +108,7 @@ export default function Navbar() {
                     }}
                   >
                     {truncAddr}
-                  </button>
+                  </button> */}
 
                   {/* Disconnect */}
                   <button

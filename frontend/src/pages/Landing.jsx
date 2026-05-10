@@ -273,25 +273,25 @@ export default function Landing() {
         {/* Left copy */}
         <div style={{ flex: "1 1 420px", maxWidth: "620px" }}>
           {/* Tag */}
-          <div className="landing-fade-up" style={{
+          {/* <div className="landing-fade-up" style={{
             display: "inline-flex", alignItems: "center", gap: "8px",
             padding: "5px 14px 5px 10px", borderRadius: "100px",
             border: "1px solid rgba(245,158,11,0.25)",
             background: "rgba(245,158,11,0.05)",
             marginBottom: "32px",
-          }}>
-            <span style={{
+          }}> */}
+            {/* <span style={{
               width: "6px", height: "6px", borderRadius: "50%",
               background: "var(--color-primary, #F59E0B)",
               boxShadow: "0 0 8px rgba(245,158,11,0.8)",
-            }} />
-            <span style={{
+            }} /> */}
+            {/* <span style={{
               fontFamily: "'Space Mono', monospace",
               fontSize: "10px", letterSpacing: "0.12em",
               color: "var(--color-primary, #F59E0B)",
               textTransform: "uppercase",
-            }}>DGT Token Governance Protocol</span>
-          </div>
+            }}>DGT Token Governance Protocol</span> */}
+          {/* </div> */}
 
           {/* Headline */}
           <h1 className="landing-fade-up-d1" style={{
@@ -327,7 +327,7 @@ export default function Landing() {
           </p>
 
           {/* CTA */}
-          <div className="landing-fade-up-d3" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          {/* <div className="landing-fade-up-d3" style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
               onClick={() => navigate("/dashboard")}
               style={{
@@ -373,7 +373,8 @@ export default function Landing() {
                 Connect Wallet
               </button>
             )}
-          </div>
+          
+          </div> */}
         </div>
 
         {/* Right – video (subtle float + gentle parallax) */}
@@ -520,7 +521,7 @@ export default function Landing() {
       }}>
 
         {/* Rolling ticker rows */}
-        <div style={{
+        {/* <div style={{
           borderBottom: "1px solid rgba(255,255,255,0.05)",
           padding: "14px 0",
           overflow: "hidden",
@@ -534,7 +535,7 @@ export default function Landing() {
           background: "rgba(245,158,11,0.015)",
         }}>
           <Ticker items={TICKER_ROW_2} reverse={true} speed={65} />
-        </div>
+        </div> */}
 
         {/* Main footer body */}
         <div style={{
@@ -565,7 +566,7 @@ export default function Landing() {
             }}>
               A fully on-chain, community-governed protocol built for the decentralized future.
             </p>
-            <div style={{ display: "flex", gap: "10px" }}>
+            {/* <div style={{ display: "flex", gap: "10px" }}>
               {["GH", "DC", "TW"].map(s => (
                 <a key={s} href="#" style={{
                   width: "32px", height: "32px", borderRadius: "6px",
@@ -579,38 +580,38 @@ export default function Landing() {
                   onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "#555"; }}
                 >{s}</a>
               ))}
-            </div>
+            </div> */}
           </div>
 
           {/* Nav columns */}
           {[
+            // {
+            //   title: "Protocol",
+            //   links: [
+            //     { label: "Dashboard", action: () => navigate("/dashboard") },
+            //     { label: "Create Proposal", action: () => navigate("/create") },
+            //     { label: "Treasury", action: () => navigate("/dashboard") },
+            //     { label: "Analytics", action: () => navigate("/dashboard") },
+            //   ],
+            // },
             {
-              title: "Protocol",
+              title: "Links",
               links: [
-                { label: "Dashboard", action: () => navigate("/dashboard") },
-                { label: "Create Proposal", action: () => navigate("/create") },
-                { label: "Treasury", action: () => navigate("/dashboard") },
-                { label: "Analytics", action: () => navigate("/dashboard") },
+                // { label: "Documentation", href: "#" },
+                { label: "GitHub", href: "https://github.com/abhishekmane1911/DAO" },
+                // { label: "Audit Reports", href: "#" },
+                // { label: "Whitepaper", href: "#" },
               ],
             },
-            {
-              title: "Resources",
-              links: [
-                { label: "Documentation", href: "#" },
-                { label: "GitHub", href: "#" },
-                { label: "Audit Reports", href: "#" },
-                { label: "Whitepaper", href: "#" },
-              ],
-            },
-            {
-              title: "Community",
-              links: [
-                { label: "Discord", href: "#" },
-                { label: "Twitter / X", href: "#" },
-                { label: "Forum", href: "#" },
-                { label: "Snapshot", href: "#" },
-              ],
-            },
+            // {
+            //   title: "Community",
+            //   links: [
+            //     { label: "Discord", href: "#" },
+            //     { label: "Twitter / X", href: "#" },
+            //     { label: "Forum", href: "#" },
+            //     { label: "Snapshot", href: "#" },
+            //   ],
+            // },
           ].map(col => (
             <div key={col.title}>
               <p style={{
@@ -650,7 +651,7 @@ export default function Landing() {
         </div>
 
         {/* Bottom bar */}
-        <div style={{
+        {/* <div style={{
           borderTop: "1px solid rgba(255,255,255,0.05)",
           padding: "20px clamp(16px, 5vw, 48px)",
           maxWidth: "1400px", margin: "0 auto",
@@ -672,7 +673,7 @@ export default function Landing() {
               >{t.toUpperCase()}</a>
             ))}
           </div>
-        </div>
+        </div> */}
       </footer>
     </div>
   );

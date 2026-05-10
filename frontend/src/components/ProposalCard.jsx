@@ -67,7 +67,7 @@ export default function ProposalCard({ proposal, onRefresh }) {
   const [loading, setLoading]               = useState(false);
   const [snapshotSupply, setSnapshotSupply] = useState(0);
 
-  const [quorumPct, setQuorumPct]           = useState(35); // default 35%
+  const [quorumPct, setQuorumPct]           = useState(30); // default 30%
 
   const yesVotes  = parseFloat(proposal.yesVotes);
   const noVotes   = parseFloat(proposal.noVotes);

@@ -1,7 +1,7 @@
 export const CONTRACTS = {
-  MintableToken: '0xcd8a1c3ba11cf5ecfa6267617243239504a98d90',
-  DAOGovernance: '0x82e01223d51eb87e16a03e24687edf0f294da6f1',
-  Treasury: '0x2bdcc0de6be1f7d2ee689a0342d76f52e8efaba3',
+  MintableToken: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+  DAOGovernance: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
+  Treasury: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
 };
 
 export const NETWORK = {
