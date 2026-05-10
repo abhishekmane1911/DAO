@@ -1,0 +1,26 @@
+# Compiler files
+cache/
+out/
+
+# Ignores development broadcast logs
+!/broadcast
+/broadcast/*/31337/
+/broadcast/**/dry-run/
+
+# Docs
+docs/
+
+# Dotenv file
+.env
+
+# Dependencies
+lib
+
+# Node (frontend)
+node_modules/
+
+.DS_Store
+CS218_Project_Marks_ppt.docx.pdf
+ARCHITECTURE.md
+extracted_text.txt
+
